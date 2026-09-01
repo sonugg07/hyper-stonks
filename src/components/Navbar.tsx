@@ -16,9 +16,7 @@ import {
   Check,
   LogOut,
   ChevronDown,
-  Shield,
   ClipboardList,
-  Globe,
 } from "lucide-react";
 
 export const Navbar: React.FC = () => {
@@ -101,18 +99,8 @@ export const Navbar: React.FC = () => {
             })}
           </nav>
 
-          {/* Right Action: Network Pill, Wallet Connect & Admin link */}
+          {/* Right Action: Network Pill & Wallet Connect */}
           <div className="hidden md:flex items-center gap-3">
-            {/* Admin quick entry */}
-            <Link
-              href="/admin"
-              className="text-xs text-muted/60 hover:text-stonks-green transition-colors flex items-center gap-1 px-2.5 py-1.5 rounded-lg hover:bg-surface-subtle"
-              title="Admin Panel"
-            >
-              <Shield className="w-3.5 h-3.5" />
-              <span>Admin</span>
-            </Link>
-
             {isConnected && address ? (
               <div className="flex items-center gap-2">
                 {/* Network Indicator & Switcher */}
@@ -287,14 +275,6 @@ export const Navbar: React.FC = () => {
                   </Link>
                 );
               })}
-              <Link
-                href="/admin"
-                onClick={() => setIsMobileMenuOpen(false)}
-                className="px-4 py-3 rounded-xl text-sm font-semibold text-muted hover:text-stonks-green hover:bg-surface-subtle transition-colors flex items-center gap-2"
-              >
-                <Shield className="w-4 h-4 text-stonks-green" />
-                <span>Admin Dashboard</span>
-              </Link>
             </div>
 
             <div className="pt-4 border-t border-surface-border">
