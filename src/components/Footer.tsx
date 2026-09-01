@@ -109,10 +109,7 @@ export const Footer: React.FC = () => {
           <div className="flex items-center gap-6">
             <Link href="/waitlist" className="hover:text-white transition-colors">Terms of Service</Link>
             <Link href="/waitlist" className="hover:text-white transition-colors">Privacy Policy</Link>
-            <Link href="/admin" className="text-stonks-green/80 hover:text-stonks-green transition-colors flex items-center gap-1">
-              <Terminal className="w-3.5 h-3.5" />
-              <span>Admin Portal</span>
-            </Link>
+            <span className="text-stonks-green font-mono text-[11px]">Hyperliquid EVM</span>
           </div>
         </div>
       </div>
