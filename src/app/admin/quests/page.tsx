@@ -2,18 +2,19 @@
 
 import React, { useState, useEffect } from "react";
 import { AdminHeader } from "@/components/AdminHeader";
-import { adminFetch, getAdminHeaders } from "@/lib/adminApi";
+import { adminFetch } from "@/lib/adminApi";
 import {
   CheckSquare,
   Plus,
   Edit2,
   Trash2,
   CheckCircle2,
-  XCircle,
+  AlertCircle,
   X,
   ExternalLink,
   Sparkles,
   RefreshCw,
+  Loader2,
 } from "lucide-react";
 import { formatNumber } from "@/lib/utils";
 
@@ -49,11 +50,12 @@ export default function AdminTasksPage() {
   const [orderIndex, setOrderIndex] = useState(1);
   const [isSaving, setIsSaving] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [modalError, setModalError] = useState<string | null>(null);
 
   const fetchTasks = async () => {
     setLoading(true);
     try {
-      const res = await adminFetch("/api/quests?all=true");
+      const res = await adminFetch(`/api/quests?all=true&t=${Date.now()}`);
       const json = await res.json();
       if (json.success && json.data) {
         setTasks(json.data);
@@ -71,6 +73,7 @@ export default function AdminTasksPage() {
 
   const openAddModal = () => {
     setEditingTask(null);
+    setModalError(null);
     setTitle("");
     setDescription("");
     setTaskType("FOLLOW_X");
@@ -84,12 +87,13 @@ export default function AdminTasksPage() {
 
   const openEditModal = (task: Task) => {
     setEditingTask(task);
+    setModalError(null);
     setTitle(task.title);
     setDescription(task.description);
     setTaskType(task.taskType);
     setUrl(task.url || "");
     setPoints(task.points);
-    setVerificationType(task.verificationType);
+    setVerificationType(task.verificationType || "HANDLE");
     setIsActive(task.isActive);
     setOrderIndex(task.orderIndex);
     setIsModalOpen(true);
@@ -98,6 +102,7 @@ export default function AdminTasksPage() {
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSaving(true);
+    setModalError(null);
 
     try {
       if (editingTask) {
@@ -116,9 +121,10 @@ export default function AdminTasksPage() {
           }),
         });
         const json = await res.json();
-        if (json.success) {
-          setToastMessage("Waitlist task updated successfully!");
+        if (!res.ok || !json.success) {
+          throw new Error(json.error || "Failed to update task.");
         }
+        setToastMessage(`Task #${orderIndex} updated successfully!`);
       } else {
         // Create new task
         const res = await adminFetch("/api/quests", {
@@ -135,16 +141,18 @@ export default function AdminTasksPage() {
           }),
         });
         const json = await res.json();
-        if (json.success) {
-          setToastMessage("New waitlist task added successfully!");
+        if (!res.ok || !json.success) {
+          throw new Error(json.error || "Failed to create task.");
         }
+        setToastMessage("New waitlist task added successfully!");
       }
 
       setIsModalOpen(false);
       await fetchTasks();
-      setTimeout(() => setToastMessage(null), 3000);
-    } catch (err) {
+      setTimeout(() => setToastMessage(null), 4000);
+    } catch (err: any) {
       console.error("Save task error:", err);
+      setModalError(err.message || "Failed to save waitlist task.");
     } finally {
       setIsSaving(false);
     }
@@ -157,11 +165,14 @@ export default function AdminTasksPage() {
       const json = await res.json();
       if (json.success) {
         setToastMessage("Task deleted successfully.");
-        fetchTasks();
+        await fetchTasks();
         setTimeout(() => setToastMessage(null), 3000);
+      } else {
+        alert(json.error || "Failed to delete task.");
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error("Delete task error:", err);
+      alert(err.message || "Error deleting task.");
     }
   };
 
@@ -252,6 +263,11 @@ export default function AdminTasksPage() {
                         <div className="text-[11px] text-muted max-w-md truncate mt-0.5">
                           {task.description}
                         </div>
+                        {task.url && (
+                          <div className="text-[10px] text-stonks-cyan/80 truncate mt-0.5">
+                            {task.url}
+                          </div>
+                        )}
                       </td>
                       <td className="py-3.5 px-4">
                         <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-surface-subtle border border-surface-border text-stonks-cyan">
@@ -277,14 +293,14 @@ export default function AdminTasksPage() {
                         <div className="flex items-center justify-end gap-2">
                           <button
                             onClick={() => openEditModal(task)}
-                            className="p-1.5 rounded-lg bg-surface-subtle hover:bg-surface-border text-muted hover:text-white transition-colors"
+                            className="p-1.5 rounded-lg bg-surface-subtle hover:bg-surface-border text-muted hover:text-white transition-colors cursor-pointer"
                             title="Edit Task"
                           >
                             <Edit2 className="w-3.5 h-3.5" />
                           </button>
                           <button
                             onClick={() => handleDelete(task.id)}
-                            className="p-1.5 rounded-lg bg-surface-subtle hover:bg-stonks-red/20 text-muted hover:text-stonks-red transition-colors"
+                            className="p-1.5 rounded-lg bg-surface-subtle hover:bg-stonks-red/20 text-muted hover:text-stonks-red transition-colors cursor-pointer"
                             title="Delete Task"
                           >
                             <Trash2 className="w-3.5 h-3.5" />
@@ -309,10 +325,21 @@ export default function AdminTasksPage() {
                 <CheckSquare className="w-5 h-5 text-stonks-green" />
                 <span>{editingTask ? "Edit Waitlist Task" : "Create New Waitlist Task"}</span>
               </h3>
-              <button onClick={() => setIsModalOpen(false)} className="text-muted hover:text-white">
+              <button
+                type="button"
+                onClick={() => setIsModalOpen(false)}
+                className="text-muted hover:text-white cursor-pointer"
+              >
                 <X className="w-5 h-5" />
               </button>
             </div>
+
+            {modalError && (
+              <div className="p-3.5 rounded-xl bg-stonks-red/10 border border-stonks-red/30 text-xs text-stonks-red flex items-center gap-2">
+                <AlertCircle className="w-4 h-4 shrink-0" />
+                <span>{modalError}</span>
+              </div>
+            )}
 
             <form onSubmit={handleSave} className="space-y-4 font-mono text-xs">
               <div className="space-y-1">
@@ -322,7 +349,7 @@ export default function AdminTasksPage() {
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
                   required
-                  placeholder="e.g. Follow Hype Stonks on X"
+                  placeholder="e.g. Join Official Discord Community"
                   className="w-full bg-[#070D0A] border border-surface-border focus:border-stonks-green rounded-xl px-4 py-2.5 text-white outline-none"
                 />
               </div>
@@ -344,18 +371,28 @@ export default function AdminTasksPage() {
                   <label className="text-muted uppercase font-bold">Task Type</label>
                   <select
                     value={taskType}
-                    onChange={(e) => setTaskType(e.target.value)}
+                    onChange={(e) => {
+                      const newType = e.target.value;
+                      setTaskType(newType);
+                      if (newType === "DISCORD" && (!url || url.includes("x.com"))) {
+                        setUrl("https://discord.gg/hypestonks");
+                      } else if (newType === "TELEGRAM" && (!url || url.includes("x.com"))) {
+                        setUrl("https://t.me/hypestonks");
+                      } else if (newType.includes("_X") && (!url || url.includes("discord.gg") || url.includes("t.me"))) {
+                        setUrl("https://x.com/HypeStonks");
+                      }
+                    }}
                     className="w-full bg-[#070D0A] border border-surface-border focus:border-stonks-green rounded-xl px-3 py-2.5 text-white outline-none"
                   >
-                    <option value="FOLLOW_X">Follow X</option>
-                    <option value="LIKE_X">Like X Post</option>
-                    <option value="REPOST_X">Repost X Post</option>
-                    <option value="COMMENT_X">Comment on X</option>
-                    <option value="WALLET_CONNECT">Connect Wallet</option>
-                    <option value="TELEGRAM">Join Telegram</option>
-                    <option value="DISCORD">Join Discord</option>
-                    <option value="VISIT_URL">Visit Website</option>
-                    <option value="CUSTOM">Custom Task</option>
+                    <option value="DISCORD">Join Discord (DISCORD)</option>
+                    <option value="TELEGRAM">Join Telegram (TELEGRAM)</option>
+                    <option value="FOLLOW_X">Follow on X (FOLLOW_X)</option>
+                    <option value="LIKE_X">Like X Post (LIKE_X)</option>
+                    <option value="REPOST_X">Repost X Post (REPOST_X)</option>
+                    <option value="COMMENT_X">Comment on X (COMMENT_X)</option>
+                    <option value="WALLET_CONNECT">Connect Wallet (WALLET_CONNECT)</option>
+                    <option value="VISIT_URL">Visit Website (VISIT_URL)</option>
+                    <option value="CUSTOM">Custom Task (CUSTOM)</option>
                   </select>
                 </div>
 
@@ -372,7 +409,7 @@ export default function AdminTasksPage() {
               </div>
 
               <div className="space-y-1">
-                <label className="text-muted uppercase font-bold">Target URL (Optional)</label>
+                <label className="text-muted uppercase font-bold">Target URL / Action Link</label>
                 <input
                   type="url"
                   value={url}
@@ -410,16 +447,17 @@ export default function AdminTasksPage() {
                 <button
                   type="button"
                   onClick={() => setIsModalOpen(false)}
-                  className="px-5 py-2.5 rounded-xl bg-surface-subtle text-muted hover:text-white"
+                  className="px-5 py-2.5 rounded-xl bg-surface-subtle text-muted hover:text-white cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={isSaving}
-                  className="px-6 py-2.5 rounded-xl bg-stonks-green text-black font-bold hover:bg-stonks-green-dim shadow-neon-green disabled:opacity-50"
+                  className="px-6 py-2.5 rounded-xl bg-stonks-green text-black font-bold hover:bg-stonks-green-dim shadow-neon-green disabled:opacity-50 cursor-pointer flex items-center gap-2"
                 >
-                  {isSaving ? "Saving..." : "Save Waitlist Task"}
+                  {isSaving && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+                  <span>{isSaving ? "Saving Task..." : "Save Waitlist Task"}</span>
                 </button>
               </div>
             </form>
