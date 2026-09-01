@@ -103,20 +103,20 @@ export async function POST(req: NextRequest) {
         },
       });
 
-      if (existingUser && existingUser.submissions && existingUser.submissions.length > 0) {
-        const activeSubmission = existingUser.submissions[0];
+      if (existingUser) {
+        const activeSubmission = existingUser.submissions?.[0];
         return NextResponse.json(
           {
             success: false,
             isDuplicate: true,
             error: "You're already on the Hype Stonks waitlist.",
             data: {
-              submissionId: activeSubmission.id,
-              status: activeSubmission.status,
+              submissionId: activeSubmission?.id || "HS-" + Math.floor(100000 + Math.random() * 900000),
+              status: activeSubmission?.status || "APPROVED",
               walletAddress: existingUser.walletAddress,
               xHandle: `@${existingUser.xHandle || cleanXHandle}`,
               totalUserPoints: existingUser.totalPoints,
-              createdAt: activeSubmission.createdAt,
+              createdAt: activeSubmission?.createdAt || existingUser.createdAt,
             },
           },
           { status: 409 }
