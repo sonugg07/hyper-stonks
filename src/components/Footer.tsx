@@ -1,7 +1,7 @@
 import React from "react";
 import Link from "next/link";
 import { Logo } from "./Logo";
-import { Twitter, Send, Disc, ExternalLink, ShieldCheck, Terminal, Heart } from "lucide-react";
+import { Twitter, Send, Disc, ExternalLink, ShieldCheck, Terminal, Shield } from "lucide-react";
 
 export const Footer: React.FC = () => {
   return (
@@ -68,8 +68,9 @@ export const Footer: React.FC = () => {
                 </Link>
               </li>
               <li>
-                <Link href="/mint" className="hover:text-stonks-green transition-colors">
-                  Genesis NFT
+                <Link href="/admin" className="hover:text-stonks-green transition-colors flex items-center gap-1.5 text-muted hover:text-white">
+                  <Shield className="w-3.5 h-3.5 text-stonks-green" />
+                  <span>Admin Panel</span>
                 </Link>
               </li>
             </ul>
@@ -109,7 +110,10 @@ export const Footer: React.FC = () => {
           <div className="flex items-center gap-6">
             <Link href="/waitlist" className="hover:text-white transition-colors">Terms of Service</Link>
             <Link href="/waitlist" className="hover:text-white transition-colors">Privacy Policy</Link>
-            <span className="text-stonks-green font-mono text-[11px]">Hyperliquid EVM</span>
+            <Link href="/admin" className="text-stonks-green/80 hover:text-stonks-green transition-colors flex items-center gap-1">
+              <Terminal className="w-3.5 h-3.5" />
+              <span>Admin Portal</span>
+            </Link>
           </div>
         </div>
       </div>
