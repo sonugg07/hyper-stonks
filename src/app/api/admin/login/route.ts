@@ -1,15 +1,19 @@
 import { NextRequest, NextResponse } from "next/server";
-
-const ADMIN_SECRET = process.env.ADMIN_SECRET || "stonks_admin_super_secret_2026";
+import { verifyCredentials, ADMIN_SECRET } from "@/lib/auth";
 
 export async function POST(req: NextRequest) {
   try {
-    const { username, password } = await req.json();
+    const body = await req.json().catch(() => ({}));
+    const { username, password } = body;
 
-    if (
-      (username === "admin" && (password === "admin123" || password === ADMIN_SECRET)) ||
-      password === ADMIN_SECRET
-    ) {
+    if (!username || !password) {
+      return NextResponse.json(
+        { success: false, error: "Please provide both username and password." },
+        { status: 400 }
+      );
+    }
+
+    if (verifyCredentials(username, password)) {
       const response = NextResponse.json({
         success: true,
         message: "Admin authenticated successfully",
@@ -18,8 +22,9 @@ export async function POST(req: NextRequest) {
 
       // Set secure session cookie
       response.cookies.set("stonks_admin_session", ADMIN_SECRET, {
-        httpOnly: false, // Accessible to client admin state
+        httpOnly: false,
         secure: process.env.NODE_ENV === "production",
+        sameSite: "lax",
         path: "/",
         maxAge: 60 * 60 * 24 * 7, // 7 days
       });
@@ -27,8 +32,15 @@ export async function POST(req: NextRequest) {
       return response;
     }
 
-    return NextResponse.json({ success: false, error: "Invalid credentials" }, { status: 401 });
+    return NextResponse.json(
+      { success: false, error: "Invalid username or password." },
+      { status: 401 }
+    );
   } catch (error) {
-    return NextResponse.json({ success: false, error: "Authentication failed" }, { status: 500 });
+    console.error("[Admin Login Error]:", error);
+    return NextResponse.json(
+      { success: false, error: "Authentication service encountered an error." },
+      { status: 500 }
+    );
   }
 }

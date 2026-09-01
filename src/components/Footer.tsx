@@ -15,7 +15,7 @@ export const Footer: React.FC = () => {
           <div className="md:col-span-2 space-y-4">
             <Logo size="lg" showTagline />
             <p className="text-sm text-muted max-w-sm leading-relaxed">
-              A community-powered Web3 platform where activity, social engagement, and conviction turn into exclusive rewards, whitelist access, and token allocations.
+              A community-powered Web3 platform where activity, social engagement, and conviction turn into exclusive waitlist positions, whitelist access, and future token allocations.
             </p>
             <div className="flex items-center gap-3 pt-2">
               <a
@@ -53,8 +53,8 @@ export const Footer: React.FC = () => {
             <h4 className="text-xs font-bold uppercase tracking-wider text-white">Ecosystem</h4>
             <ul className="space-y-2 text-sm text-muted">
               <li>
-                <Link href="/quests" className="hover:text-stonks-green transition-colors">
-                  Community Quests
+                <Link href="/waitlist" className="hover:text-stonks-green transition-colors">
+                  Join Waitlist
                 </Link>
               </li>
               <li>
@@ -80,7 +80,7 @@ export const Footer: React.FC = () => {
             <h4 className="text-xs font-bold uppercase tracking-wider text-white">System Status</h4>
             <div className="space-y-2 text-xs">
               <div className="flex items-center justify-between p-2.5 bg-surface-subtle/80 rounded-lg border border-surface-border">
-                <span className="text-muted">Quest Engine</span>
+                <span className="text-muted">Waitlist Engine</span>
                 <span className="flex items-center gap-1.5 text-stonks-green font-semibold">
                   <span className="w-2 h-2 rounded-full bg-stonks-green animate-pulse" />
                   Operational
@@ -91,10 +91,10 @@ export const Footer: React.FC = () => {
                 <span className="text-stonks-cyan font-semibold">Ethereum Mainnet</span>
               </div>
               <div className="flex items-center justify-between p-2.5 bg-surface-subtle/80 rounded-lg border border-surface-border">
-                <span className="text-muted">Security Audits</span>
+                <span className="text-muted">Security Verification</span>
                 <span className="text-white flex items-center gap-1">
                   <ShieldCheck className="w-3.5 h-3.5 text-stonks-green" />
-                  Verified
+                  Anti-Bot Active
                 </span>
               </div>
             </div>
@@ -107,8 +107,8 @@ export const Footer: React.FC = () => {
             © {new Date().getFullYear()} <span className="text-white font-semibold">Hype Stonks Protocol</span>. All rights reserved.
           </div>
           <div className="flex items-center gap-6">
-            <Link href="/quests" className="hover:text-white transition-colors">Terms of Service</Link>
-            <Link href="/quests" className="hover:text-white transition-colors">Privacy Policy</Link>
+            <Link href="/waitlist" className="hover:text-white transition-colors">Terms of Service</Link>
+            <Link href="/waitlist" className="hover:text-white transition-colors">Privacy Policy</Link>
             <Link href="/admin" className="text-stonks-green/80 hover:text-stonks-green transition-colors flex items-center gap-1">
               <Terminal className="w-3.5 h-3.5" />
               <span>Admin Portal</span>

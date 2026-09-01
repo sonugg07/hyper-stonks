@@ -4,63 +4,81 @@ import { verifyAdminAuth } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 
-// GET all active quests for public quests page
+// GET all active waitlist tasks
 export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
     const includeInactive = searchParams.get("all") === "true";
 
-    const quests = await prisma.quest.findMany({
+    const tasks = await prisma.quest.findMany({
       where: includeInactive ? undefined : { isActive: true },
       orderBy: { orderIndex: "asc" },
     });
 
-    const registeredCount = (await prisma.user.count()) + 14820;
+    const registeredCount = await prisma.user.count();
 
     return NextResponse.json({
       success: true,
-      data: quests,
+      data: tasks,
       registeredCount,
     });
   } catch (error) {
-    console.error("Error fetching quests:", error);
-    return NextResponse.json({ success: false, error: "Failed to fetch quests" }, { status: 500 });
+    console.error("[Tasks Fetch Error]:", error);
+    return NextResponse.json(
+      { success: false, error: "Unable to retrieve waitlist tasks." },
+      { status: 500 }
+    );
   }
 }
 
-// POST create new quest (Admin only)
+// POST create new task (Admin only)
 export async function POST(req: NextRequest) {
   if (!verifyAdminAuth(req)) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
   }
 
   try {
-    const body = await req.json();
+    const body = await req.json().catch(() => ({}));
     const { title, description, taskType, url, points, verificationType, isActive, orderIndex } = body;
 
     if (!title || !description || !taskType) {
-      return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
+      return NextResponse.json(
+        { success: false, error: "Title, description, and task type are required." },
+        { status: 400 }
+      );
     }
 
     const slug = title.toLowerCase().replace(/[^a-z0-9]+/g, "-") + "-" + Date.now();
 
-    const quest = await prisma.quest.create({
+    const task = await prisma.quest.create({
       data: {
         slug,
-        title,
-        description,
+        title: title.trim(),
+        description: description.trim(),
         taskType,
-        url: url || null,
+        url: url ? url.trim() : null,
         points: Number(points) || 100,
         verificationType: verificationType || "HANDLE",
-        isActive: isActive !== undefined ? isActive : true,
+        isActive: isActive !== undefined ? Boolean(isActive) : true,
         orderIndex: Number(orderIndex) || 0,
       },
     });
 
-    return NextResponse.json({ success: true, data: quest });
+    // Record Activity Log
+    await prisma.activityLog.create({
+      data: {
+        actor: "Admin",
+        action: "TASK_CREATED",
+        details: `Created new task: "${task.title}" (+${task.points} PTS)`,
+      },
+    });
+
+    return NextResponse.json({ success: true, data: task });
   } catch (error) {
-    console.error("Error creating quest:", error);
-    return NextResponse.json({ success: false, error: "Failed to create quest" }, { status: 500 });
+    console.error("[Task Create Error]:", error);
+    return NextResponse.json(
+      { success: false, error: "Failed to create waitlist task." },
+      { status: 500 }
+    );
   }
 }

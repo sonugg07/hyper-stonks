@@ -4,66 +4,59 @@ import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { PublicLayout } from "@/components/PublicLayout";
 import { StatsCounter } from "@/components/StatsCounter";
-import { useWeb3 } from "@/lib/web3";
 import { WalletModal } from "@/components/WalletModal";
+import { useWeb3 } from "@/lib/web3";
+import { shortenAddress } from "@/lib/utils";
 import {
   ArrowRight,
-  TrendingUp,
-  Zap,
-  ShieldCheck,
-  Award,
   Sparkles,
-  ChevronRight,
+  Zap,
   Coins,
   Lock,
+  ChevronRight,
   ExternalLink,
-  Users,
   Target,
-  Crown,
+  ClipboardList,
 } from "lucide-react";
-import { shortenAddress } from "@/lib/utils";
 
 export default function HomePage() {
-  const { isConnected, address } = useWeb3();
+  const { address, isConnected } = useWeb3();
   const [isWalletModalOpen, setIsWalletModalOpen] = useState(false);
   const [mintStatus, setMintStatus] = useState<boolean>(false);
   const [stakingStatus, setStakingStatus] = useState<boolean>(false);
 
   useEffect(() => {
-    // Fetch live mint and staking settings
-    async function loadSettings() {
+    // Fetch live module statuses for cards
+    async function loadModuleStatus() {
       try {
-        const [mintRes, stakeRes] = await Promise.all([
+        const [mintRes, stakingRes] = await Promise.all([
           fetch("/api/mint"),
           fetch("/api/staking"),
         ]);
         const mintJson = await mintRes.json();
-        const stakeJson = await stakeRes.json();
-        if (mintJson.data) setMintStatus(mintJson.data.isActive);
-        if (stakeJson.data) setStakingStatus(stakeJson.data.isActive);
+        const stakingJson = await stakingRes.json();
+        if (mintJson.success && mintJson.data) setMintStatus(mintJson.data.isActive);
+        if (stakingJson.success && stakingJson.data) setStakingStatus(stakingJson.data.isActive);
       } catch (err) {
         console.error("Failed to load module status:", err);
       }
     }
-    loadSettings();
+    loadModuleStatus();
   }, []);
 
   return (
     <PublicLayout>
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-24">
+      <div className="space-y-24 sm:space-y-32">
         {/* HERO SECTION */}
-        <section className="relative pt-12 sm:pt-20 pb-16 text-center">
-          {/* Subtle glowing orb */}
-          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[30rem] sm:w-[45rem] h-[20rem] bg-hero-glow blur-3xl pointer-events-none -z-10" />
-
-          {/* Announcement pill */}
+        <section className="relative text-center max-w-5xl mx-auto pt-6 sm:pt-12">
+          {/* Season Live Pill */}
           <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-surface-subtle/90 border border-stonks-green/30 shadow-[0_0_20px_rgba(0,255,163,0.15)] mb-8">
             <span className="flex h-2 w-2 relative">
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-stonks-green opacity-75"></span>
               <span className="relative inline-flex rounded-full h-2 w-2 bg-stonks-green"></span>
             </span>
             <span className="text-xs font-mono font-bold text-stonks-green uppercase tracking-wider">
-              SEASON 1 COMMUNITY QUESTS ARE LIVE
+              SEASON 1 WAITLIST IS LIVE
             </span>
             <ChevronRight className="w-3.5 h-3.5 text-muted" />
           </div>
@@ -78,22 +71,22 @@ export default function HomePage() {
 
           {/* Supporting Text */}
           <p className="mt-6 text-base sm:text-xl text-muted max-w-2xl mx-auto leading-relaxed">
-            A community-powered Web3 platform where activity, participation, and conviction turn into exclusive points, NFT whitelist allocations, and token staking.
+            A community-powered Web3 platform where activity, participation, and conviction turn into verified waitlist allocations, NFT passes, and staking yield.
           </p>
 
           {/* CTA Buttons */}
           <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-4">
             <Link
-              href="/quests"
+              href="/waitlist"
               className="w-full sm:w-auto px-8 py-4 rounded-2xl font-black text-sm uppercase tracking-wider text-black bg-stonks-green hover:bg-stonks-green-dim transition-all shadow-neon-green hover:shadow-[0_0_35px_rgba(0,255,163,0.6)] flex items-center justify-center gap-2.5 group"
             >
-              <span>Start Quests</span>
+              <span>Join Waitlist</span>
               <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
             </Link>
 
             {isConnected && address ? (
               <Link
-                href="/quests"
+                href="/waitlist"
                 className="w-full sm:w-auto px-8 py-4 rounded-2xl font-bold text-sm uppercase tracking-wider text-white bg-surface-subtle/80 hover:bg-surface-border border border-stonks-green/30 hover:border-stonks-green transition-all flex items-center justify-center gap-2"
               >
                 <div className="w-2 h-2 rounded-full bg-stonks-green animate-pulse" />
@@ -152,7 +145,7 @@ export default function HomePage() {
               <div className="w-12 h-12 rounded-2xl bg-stonks-cyan/10 border border-stonks-cyan/30 flex items-center justify-center text-stonks-cyan font-mono font-black text-lg mb-6 group-hover:scale-110 transition-transform">
                 02
               </div>
-              <h3 className="text-xl font-bold text-white mb-2">Complete Community Quests</h3>
+              <h3 className="text-xl font-bold text-white mb-2">Complete Waitlist Tasks</h3>
               <p className="text-sm text-muted leading-relaxed">
                 Follow X channels, like & repost official announcements, contribute comments, and engage across Discord and Telegram.
               </p>
@@ -163,9 +156,9 @@ export default function HomePage() {
               <div className="w-12 h-12 rounded-2xl bg-stonks-green/10 border border-stonks-green/30 flex items-center justify-center text-stonks-green font-mono font-black text-lg mb-6 group-hover:scale-110 transition-transform">
                 03
               </div>
-              <h3 className="text-xl font-bold text-white mb-2">Earn Points & Ascend</h3>
+              <h3 className="text-xl font-bold text-white mb-2">Secure Spot & Ascend</h3>
               <p className="text-sm text-muted leading-relaxed">
-                Accumulate stonks points, climb the global leaderboard, earn referral bonuses, and unlock future whitelist allocations.
+                Accumulate conviction points, earn referral bonuses, and secure your guaranteed whitelist allocation for upcoming releases.
               </p>
             </div>
           </div>
@@ -262,14 +255,14 @@ export default function HomePage() {
               Ready to Claim Your Position?
             </h2>
             <p className="text-sm sm:text-base text-muted leading-relaxed">
-              Join thousands of Web3 traders, collectors, and early contributors earning conviction points every single day.
+              Join thousands of Web3 traders, collectors, and early contributors securing their verified waitlist spots every day.
             </p>
             <div className="pt-2 flex flex-col sm:flex-row items-center justify-center gap-4">
               <Link
-                href="/quests"
+                href="/waitlist"
                 className="w-full sm:w-auto px-8 py-3.5 rounded-xl font-bold text-xs uppercase tracking-wider text-black bg-stonks-green hover:bg-stonks-green-dim transition-all shadow-neon-green"
               >
-                Launch Community Quests
+                Join Official Waitlist
               </Link>
               <a
                 href="https://x.com/HypeStonks"

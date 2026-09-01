@@ -6,7 +6,7 @@ export const dynamic = "force-dynamic";
 
 export async function GET(req: NextRequest) {
   if (!verifyAdminAuth(req)) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
   }
 
   try {
@@ -15,22 +15,23 @@ export async function GET(req: NextRequest) {
     });
     return NextResponse.json({ success: true, data: mintSettings });
   } catch (error) {
+    console.error("[Admin Mint GET Error]:", error);
     return NextResponse.json({ success: false, error: "Failed to fetch mint settings" }, { status: 500 });
   }
 }
 
 export async function PUT(req: NextRequest) {
   if (!verifyAdminAuth(req)) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
   }
 
   try {
-    const body = await req.json();
+    const body = await req.json().catch(() => ({}));
 
     const updated = await prisma.mintSettings.upsert({
       where: { id: "default" },
       update: {
-        isActive: body.isActive !== undefined ? body.isActive : undefined,
+        isActive: body.isActive !== undefined ? Boolean(body.isActive) : undefined,
         priceEth: body.priceEth !== undefined ? Number(body.priceEth) : undefined,
         maxSupply: body.maxSupply !== undefined ? Number(body.maxSupply) : undefined,
         maxPerWallet: body.maxPerWallet !== undefined ? Number(body.maxPerWallet) : undefined,
@@ -42,7 +43,7 @@ export async function PUT(req: NextRequest) {
       },
       create: {
         id: "default",
-        isActive: body.isActive || false,
+        isActive: Boolean(body.isActive) || false,
         priceEth: Number(body.priceEth) || 0.08,
         maxSupply: Number(body.maxSupply) || 3333,
         mintedCount: 1420,
@@ -53,9 +54,20 @@ export async function PUT(req: NextRequest) {
       },
     });
 
+    // Record activity log
+    if (body.isActive !== undefined) {
+      await prisma.activityLog.create({
+        data: {
+          actor: "Admin",
+          action: body.isActive ? "MINT_ENABLED" : "MINT_DISABLED",
+          details: `Admin changed Mint status to ${body.isActive ? "ON" : "OFF"} (${updated.priceEth} ETH / Max: ${updated.maxSupply})`,
+        },
+      });
+    }
+
     return NextResponse.json({ success: true, data: updated });
   } catch (error) {
-    console.error("Error updating mint settings:", error);
+    console.error("[Admin Mint PUT Error]:", error);
     return NextResponse.json({ success: false, error: "Failed to update mint settings" }, { status: 500 });
   }
 }

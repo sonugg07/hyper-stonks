@@ -6,7 +6,7 @@ export const dynamic = "force-dynamic";
 
 export async function GET(req: NextRequest) {
   if (!verifyAdminAuth(req)) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
   }
 
   try {
@@ -15,22 +15,23 @@ export async function GET(req: NextRequest) {
     });
     return NextResponse.json({ success: true, data: stakingSettings });
   } catch (error) {
+    console.error("[Admin Staking GET Error]:", error);
     return NextResponse.json({ success: false, error: "Failed to fetch staking settings" }, { status: 500 });
   }
 }
 
 export async function PUT(req: NextRequest) {
   if (!verifyAdminAuth(req)) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
   }
 
   try {
-    const body = await req.json();
+    const body = await req.json().catch(() => ({}));
 
     const updated = await prisma.stakingSettings.upsert({
       where: { id: "default" },
       update: {
-        isActive: body.isActive !== undefined ? body.isActive : undefined,
+        isActive: body.isActive !== undefined ? Boolean(body.isActive) : undefined,
         apyPercent: body.apyPercent !== undefined ? Number(body.apyPercent) : undefined,
         minStake: body.minStake !== undefined ? Number(body.minStake) : undefined,
         maxStake: body.maxStake !== undefined ? Number(body.maxStake) : undefined,
@@ -42,7 +43,7 @@ export async function PUT(req: NextRequest) {
       },
       create: {
         id: "default",
-        isActive: body.isActive || false,
+        isActive: Boolean(body.isActive) || false,
         apyPercent: Number(body.apyPercent) || 42.5,
         minStake: Number(body.minStake) || 0.1,
         maxStake: Number(body.maxStake) || 50.0,
@@ -55,9 +56,20 @@ export async function PUT(req: NextRequest) {
       },
     });
 
+    // Record activity log
+    if (body.isActive !== undefined) {
+      await prisma.activityLog.create({
+        data: {
+          actor: "Admin",
+          action: body.isActive ? "STAKING_ENABLED" : "STAKING_DISABLED",
+          details: `Admin changed Staking status to ${body.isActive ? "ON" : "OFF"} (${updated.apyPercent}% APY / ${updated.lockDurationDays}d lock)`,
+        },
+      });
+    }
+
     return NextResponse.json({ success: true, data: updated });
   } catch (error) {
-    console.error("Error updating staking settings:", error);
+    console.error("[Admin Staking PUT Error]:", error);
     return NextResponse.json({ success: false, error: "Failed to update staking settings" }, { status: 500 });
   }
 }

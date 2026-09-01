@@ -4,10 +4,22 @@ const prisma = new PrismaClient();
 async function main() {
   console.log('🌱 Starting HYPE STONKS database seeding...');
 
-  // 1. Site Settings (Default config: Mint OFF, Staking OFF, Quests ON, Referrals ON, Maintenance OFF)
+  // 1. Site Settings (Default config: Mint OFF, Staking OFF, Quests/Waitlist ON, Referrals ON, Maintenance OFF)
   await prisma.siteSettings.upsert({
     where: { id: 'default' },
-    update: {},
+    update: {
+      projectName: 'Hype Stonks',
+      tagline: 'Trade the Hype. Earn Your Position.',
+      twitterUrl: 'https://x.com/HypeStonks',
+      discordUrl: 'https://discord.gg/hypestonks',
+      telegramUrl: 'https://t.me/hypestonks',
+      websiteUrl: 'https://hype-stonks.io',
+      questsEnabled: true,
+      mintEnabled: false,      // Initially OFF
+      stakingEnabled: false,   // Initially OFF
+      referralsEnabled: true,
+      referralRewardPoints: 250,
+    },
     create: {
       id: 'default',
       projectName: 'Hype Stonks',
@@ -19,8 +31,8 @@ async function main() {
       websiteUrl: 'https://hype-stonks.io',
       maintenanceMode: false,
       questsEnabled: true,
-      mintEnabled: false,      // Must initially be OFF
-      stakingEnabled: false,   // Must initially be OFF
+      mintEnabled: false,      // Initially OFF
+      stakingEnabled: false,   // Initially OFF
       referralsEnabled: true,
       referralRewardPoints: 250,
       maxReferralRewards: 10000,
@@ -63,8 +75,8 @@ async function main() {
     },
   });
 
-  // 4. Default Quests (01-06)
-  const defaultQuests = [
+  // 4. Default Waitlist Tasks (01-06)
+  const defaultTasks = [
     {
       slug: 'follow-x',
       orderIndex: 1,
@@ -124,7 +136,7 @@ async function main() {
       slug: 'join-discord',
       orderIndex: 6,
       title: 'Join Discord Server & Claim Role',
-      description: 'Join the Hype Stonks Discord server and verify your Discord handle to unlock exclusive quest channels.',
+      description: 'Join the Hype Stonks Discord server and verify your Discord handle to unlock exclusive channels.',
       taskType: 'DISCORD',
       url: 'https://discord.gg/hypestonks',
       points: 200,
@@ -133,82 +145,36 @@ async function main() {
     },
   ];
 
-  for (const q of defaultQuests) {
+  for (const t of defaultTasks) {
     await prisma.quest.upsert({
-      where: { slug: q.slug },
-      update: q,
-      create: q,
+      where: { slug: t.slug },
+      update: t,
+      create: t,
     });
   }
 
-  // 5. Seed Top Leaderboard Demo Users for rich display
-  const demoUsers = [
-    {
-      walletAddress: '0x71C...82E4',
-      xHandle: 'SatoshiStonks',
-      totalPoints: 12450,
-      referralCode: 'STONK001',
-      role: 'USER',
+  // 5. Admin User (Mewtwogg)
+  await prisma.adminUser.upsert({
+    where: { username: 'Mewtwogg' },
+    update: {
+      passwordHash: 'Mewtwo@7860',
     },
-    {
-      walletAddress: '0x32B...9F11',
-      xHandle: 'GigaChadTrader',
-      totalPoints: 9800,
-      referralCode: 'CHAD777',
-      role: 'USER',
+    create: {
+      username: 'Mewtwogg',
+      passwordHash: 'Mewtwo@7860',
+      role: 'SUPERADMIN',
     },
-    {
-      walletAddress: '0x94A...4C70',
-      xHandle: 'BullishWhale',
-      totalPoints: 8650,
-      referralCode: 'WHALE88',
-      role: 'USER',
-    },
-    {
-      walletAddress: '0x18F...77D2',
-      xHandle: 'AlphaHunterX',
-      totalPoints: 7200,
-      referralCode: 'ALPHA22',
-      role: 'USER',
-    },
-    {
-      walletAddress: '0x5C9...3A19',
-      xHandle: 'DeFiRunner',
-      totalPoints: 6150,
-      referralCode: 'DEFI999',
-      role: 'USER',
-    },
-    {
-      walletAddress: '0x88D...0E55',
-      xHandle: 'CryptoVoyager',
-      totalPoints: 5400,
-      referralCode: 'VOYAGE1',
-      role: 'USER',
-    },
-    {
-      walletAddress: '0x21E...88B4',
-      xHandle: 'MintMaster_Eth',
-      totalPoints: 4950,
-      referralCode: 'MINT888',
-      role: 'USER',
-    },
-  ];
+  });
 
-  for (const u of demoUsers) {
-    await prisma.user.upsert({
-      where: { walletAddress: u.walletAddress },
-      update: { totalPoints: u.totalPoints },
-      create: u,
-    });
-  }
-
-  // 6. Admin User
+  // Also keep default admin for backward compatibility if needed
   await prisma.adminUser.upsert({
     where: { username: 'admin' },
-    update: {},
+    update: {
+      passwordHash: 'Mewtwo@7860',
+    },
     create: {
       username: 'admin',
-      passwordHash: 'admin123', // Demo login password
+      passwordHash: 'Mewtwo@7860',
       role: 'SUPERADMIN',
     },
   });

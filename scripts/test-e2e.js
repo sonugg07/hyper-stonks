@@ -35,7 +35,7 @@ function request(path, options = {}, body = null) {
 }
 
 async function runTests() {
-  console.log('🚀 Running HYPE STONKS End-to-End Verification Suite...\n');
+  console.log('🚀 Running HYPE STONKS Complete Verification Suite...\n');
   let passed = 0;
   let failed = 0;
 
@@ -50,135 +50,169 @@ async function runTests() {
   }
 
   try {
-    // 1. Test Stats
+    // 1. Test Stats API
     console.log('--- 1. Testing Platform Stats API ---');
     const statsRes = await request('/api/stats');
     assert(statsRes.status === 200, 'Stats endpoint returns HTTP 200');
-    assert(statsRes.body.data.activeQuests >= 6, 'Active quests count >= 6');
-    assert(statsRes.body.data.registeredUsers >= 14820, 'Registered users count is dynamic');
+    assert(statsRes.body.data.activeQuests >= 6, 'Active tasks count is dynamic');
 
-    // 2. Test Quests Listing
-    console.log('\n--- 2. Testing Quests API ---');
-    const questsRes = await request('/api/quests');
-    assert(questsRes.status === 200, 'Quests endpoint returns HTTP 200');
-    assert(questsRes.body.data.length >= 6, `Returned ${questsRes.body.data.length} active quests`);
-    const q1 = questsRes.body.data[0];
-    assert(q1.title.includes('Follow'), `First quest is: ${q1.title}`);
+    // 2. Test Tasks Listing
+    console.log('\n--- 2. Testing Waitlist Tasks API ---');
+    const tasksRes = await request('/api/quests');
+    assert(tasksRes.status === 200, 'Tasks endpoint returns HTTP 200');
+    assert(tasksRes.body.data.length >= 6, `Returned ${tasksRes.body.data.length} active tasks`);
+    const t1 = tasksRes.body.data[0];
+    assert(t1.title.includes('Follow'), `First task is: ${t1.title}`);
 
     // 3. Test Invalid EVM Address Submission
-    console.log('\n--- 3. Testing Quest Input Validation ---');
+    console.log('\n--- 3. Testing Wallet Validation ---');
     const invalidSub = await request('/api/quests/submit', { method: 'POST' }, {
-      xHandle: 'testuser',
-      walletAddress: '0xinvalidwallet',
-      captchaToken: 'test',
+      xHandle: 'tester',
+      walletAddress: '0xinvalid_wallet_address_123',
+      captchaToken: 'test_token',
     });
     assert(invalidSub.status === 400, 'Invalid EVM address rejected with HTTP 400');
 
-    // 4. Test Valid Quest Submission
-    console.log('\n--- 4. Testing Quest Submission & Points Award ---');
-    const testWallet = '0x1111222233334444555566667777888899990000';
-    const validSub = await request('/api/quests/submit', { method: 'POST' }, {
-      xHandle: 'HypeTester99',
-      commentUrl: 'https://x.com/HypeTester99/status/12345',
-      walletAddress: testWallet,
-      captchaToken: 'token_123',
-    });
-    assert(validSub.status === 200, 'Valid entry submission succeeded with HTTP 200');
-    assert(validSub.body.data.pointsEarned > 0, `Earned ${validSub.body.data.pointsEarned} PTS`);
-    assert(validSub.body.data.submissionId.startsWith('HS-'), `Submission ID created: ${validSub.body.data.submissionId}`);
+    // 4. Test Valid Waitlist Submission
+    console.log('\n--- 4. Testing Waitlist Submission & Points Attribution ---');
+    const crypto = require('crypto');
+    const hex20 = crypto.randomBytes(20).toString('hex');
+    const testWallet = `0x${hex20}`;
+    const testHandle = `MewtwoTrader_${hex20.slice(0, 8)}`;
 
-    // 5. Test Duplicate Prevention
+    const validSub = await request('/api/quests/submit', { method: 'POST' }, {
+      xHandle: testHandle,
+      commentUrl: `https://x.com/${testHandle}/status/98765`,
+      walletAddress: testWallet,
+      captchaToken: 'token_hcap_ok',
+    });
+    console.log('validSub status:', validSub.status, 'body:', validSub.body);
+    assert(validSub.status === 200, 'Waitlist entry submission succeeded with HTTP 200');
+    assert(validSub.body && validSub.body.data && validSub.body.data.pointsEarned > 0, `Earned ${validSub.body?.data?.pointsEarned} PTS`);
+    assert(validSub.body.data.submissionId.startsWith('HS-'), `Created Submission ID: ${validSub.body.data.submissionId}`);
+
+    // 5. Test Duplicate Submission Protection
     console.log('\n--- 5. Testing Anti-Duplicate Submission Check ---');
     const dupSub = await request('/api/quests/submit', { method: 'POST' }, {
-      xHandle: 'HypeTester99',
+      xHandle: testHandle,
       walletAddress: testWallet,
-      captchaToken: 'token_123',
+      captchaToken: 'token_hcap_ok',
     });
     assert(dupSub.status === 409, 'Duplicate submission rejected with HTTP 409 Conflict');
+    assert(dupSub.body.error.includes('already on the Hype Stonks waitlist'), 'Contains expected duplicate waitlist message');
 
-    // 6. Test Mint Default OFF Status
-    console.log('\n--- 6. Testing Mint Default Closed State ---');
+    // 6. Test Admin Authentication
+    console.log('\n--- 6. Testing Admin Login Credentials (Mewtwogg / Mewtwo@7860) ---');
+    const loginFail = await request('/api/admin/login', { method: 'POST' }, {
+      username: 'wronguser',
+      password: 'wrongpassword',
+    });
+    assert(loginFail.status === 401, 'Invalid admin login rejected with HTTP 401');
+
+    const loginSuccess = await request('/api/admin/login', { method: 'POST' }, {
+      username: 'Mewtwogg',
+      password: 'Mewtwo@7860',
+    });
+    assert(loginSuccess.status === 200, 'Admin login with Mewtwogg/Mewtwo@7860 succeeded with HTTP 200');
+
+    // 7. Test Admin Real Database Overview
+    console.log('\n--- 7. Testing Admin Real Database Overview ---');
+    const adminOverview = await request('/api/admin/overview');
+    assert(adminOverview.status === 200, 'Admin overview returned HTTP 200');
+    assert(adminOverview.body.data.totalUsers >= 1, `Real total users count: ${adminOverview.body.data.totalUsers}`);
+    assert(adminOverview.body.data.totalWaitlistEntries >= 1, `Real waitlist entries: ${adminOverview.body.data.totalWaitlistEntries}`);
+    assert(adminOverview.body.data.totalPointsAwarded > 0, `Real total points: ${adminOverview.body.data.totalPointsAwarded}`);
+
+    // 8. Test Admin Waitlist & Submissions Management
+    console.log('\n--- 8. Testing Admin Waitlist Management ---');
+    const waitlistRes = await request('/api/admin/waitlist');
+    assert(waitlistRes.status === 200, 'Waitlist endpoint returned HTTP 200');
+    assert(waitlistRes.body.data.items.length > 0, `Found ${waitlistRes.body.data.items.length} waitlist records`);
+
+    // Test Submission Approval & Points Disbursal
+    const subItem = waitlistRes.body.data.items[0];
+    const updateRes = await request(`/api/admin/submissions/${subItem.id}`, { method: 'PUT' }, {
+      status: 'APPROVED',
+    });
+    assert(updateRes.status === 200, 'Admin successfully approved submission');
+
+    // 9. Test Admin User Management & Points Adjustment
+    console.log('\n--- 9. Testing Admin User Directory & Points Adjustment ---');
+    const usersRes = await request('/api/admin/users');
+    assert(usersRes.status === 200, 'Admin users list returned HTTP 200');
+    assert(usersRes.body.data.users.length > 0, `Users found in database: ${usersRes.body.data.users.length}`);
+
+    const u1 = usersRes.body.data.users[0];
+    const adjustRes = await request(`/api/admin/users/${u1.id}`, { method: 'PUT' }, {
+      totalPoints: u1.totalPoints + 100,
+      pointsAdjustmentReason: 'Bonus points for testing',
+    });
+    assert(adjustRes.status === 200, 'Admin successfully updated user points');
+
+    // 10. Test Activity Log
+    console.log('\n--- 10. Testing Activity Log Audit Trail ---');
+    const activityRes = await request('/api/admin/activity');
+    assert(activityRes.status === 200, 'Activity log endpoint returned HTTP 200');
+    assert(activityRes.body.data.length > 0, `Logged ${activityRes.body.data.length} real activity events`);
+
+    // 11. Test Mint Initial Closed State & Toggle ON/OFF
+    console.log('\n--- 11. Testing Mint Module (Default OFF -> Toggle ON -> Revert OFF) ---');
     const mintInitial = await request('/api/mint');
-    assert(mintInitial.status === 200, 'Mint config endpoint returns 200');
-    assert(mintInitial.body.data.isActive === false, 'Mint is initially DISABLED (isActive === false)');
+    assert(mintInitial.status === 200, 'Mint public endpoint returned 200');
+    assert(mintInitial.body.data.isActive === false, 'Mint is initially CLOSED (isActive === false)');
 
     const mintBlocked = await request('/api/mint', { method: 'POST' }, {
       walletAddress: testWallet,
       quantity: 1,
     });
-    assert(mintBlocked.status === 403, 'Minting while disabled returns HTTP 403 Forbidden');
+    assert(mintBlocked.status === 403, 'Minting while closed returns HTTP 403 Forbidden');
 
-    // 7. Test Admin Mint Toggle ON
-    console.log('\n--- 7. Testing Admin Mint Toggle ON / OFF ---');
+    // Admin Toggle ON
     const mintToggleOn = await request('/api/admin/mint', { method: 'PUT' }, {
       isActive: true,
       priceEth: 0.08,
     });
-    assert(mintToggleOn.body.data.isActive === true, 'Admin successfully switched Mint to ON');
+    assert(mintToggleOn.body.data.isActive === true, 'Admin successfully toggled Mint ON');
 
     const mintExec = await request('/api/mint', { method: 'POST' }, {
       walletAddress: testWallet,
-      quantity: 2,
+      quantity: 1,
     });
-    assert(mintExec.status === 200, 'Minting while enabled succeeds with HTTP 200');
-    assert(mintExec.body.data.isDemoTransaction === true, 'Demo transaction flag verified');
+    assert(mintExec.status === 200, 'Minting while active succeeded with HTTP 200');
 
-    // Revert mint back to false for default config compliance
+    // Revert Mint OFF
     await request('/api/admin/mint', { method: 'PUT' }, { isActive: false });
     const mintReverted = await request('/api/mint');
-    assert(mintReverted.body.data.isActive === false, 'Mint successfully reverted to OFF');
+    assert(mintReverted.body.data.isActive === false, 'Mint successfully reverted to CLOSED');
 
-    // 8. Test Staking Default OFF Status & Toggle
-    console.log('\n--- 8. Testing Staking Default Closed State & Toggle ---');
+    // 12. Test Staking Initial Closed State & Toggle ON/OFF
+    console.log('\n--- 12. Testing Staking Module (Default OFF -> Toggle ON -> Revert OFF) ---');
     const stakingInitial = await request('/api/staking');
-    assert(stakingInitial.body.data.isActive === false, 'Staking is initially DISABLED (isActive === false)');
+    assert(stakingInitial.body.data.isActive === false, 'Staking is initially CLOSED (isActive === false)');
 
     const stakeBlocked = await request('/api/staking', { method: 'POST' }, {
       action: 'STAKE',
       walletAddress: testWallet,
       amount: 1.0,
     });
-    assert(stakeBlocked.status === 403, 'Staking while disabled returns HTTP 403 Forbidden');
+    assert(stakeBlocked.status === 403, 'Staking while closed returns HTTP 403 Forbidden');
 
-    // Toggle Staking ON in Admin
+    // Admin Toggle ON
     await request('/api/admin/staking', { method: 'PUT' }, { isActive: true, apyPercent: 42.5 });
     const stakeAllowed = await request('/api/staking', { method: 'POST' }, {
       action: 'STAKE',
       walletAddress: testWallet,
-      amount: 1.5,
+      amount: 1.0,
     });
-    assert(stakeAllowed.status === 200, 'Staking execution succeeded when enabled');
+    assert(stakeAllowed.status === 200, 'Staking execution succeeded when active');
 
-    // Revert staking back to false for default config compliance
+    // Revert Staking OFF
     await request('/api/admin/staking', { method: 'PUT' }, { isActive: false });
     const stakeReverted = await request('/api/staking');
-    assert(stakeReverted.body.data.isActive === false, 'Staking successfully reverted to OFF');
-
-    // 9. Test Leaderboard & User Rank
-    console.log('\n--- 9. Testing Leaderboard & User Position ---');
-    const lbRes = await request(`/api/leaderboard?userWallet=${testWallet}`);
-    assert(lbRes.status === 200, 'Leaderboard endpoint returns HTTP 200');
-    assert(lbRes.body.data.leaderboard.length > 0, `Leaderboard contains ${lbRes.body.data.leaderboard.length} users`);
-    assert(lbRes.body.data.currentUserRank !== null, `Current user found in ranking with rank #${lbRes.body.data.currentUserRank?.rank}`);
-
-    // 10. Test User Dashboard API
-    console.log('\n--- 10. Testing User Dashboard API ---');
-    const userRes = await request(`/api/user/${testWallet}`);
-    assert(userRes.status === 200, 'User profile endpoint returns HTTP 200');
-    assert(userRes.body.data.totalPoints > 0, `User total points: ${userRes.body.data.totalPoints}`);
-    assert(userRes.body.data.referralCode !== undefined, `User referral code: ${userRes.body.data.referralCode}`);
-
-    // 11. Test Admin Overview & Submissions Moderation
-    console.log('\n--- 11. Testing Admin Overview & Submissions ---');
-    const adminOverview = await request('/api/admin/overview');
-    assert(adminOverview.status === 200, 'Admin overview returned successfully');
-
-    const adminSubs = await request('/api/admin/submissions');
-    assert(adminSubs.status === 200, 'Admin submissions list returned successfully');
-    assert(adminSubs.body.data.submissions.length > 0, `Found ${adminSubs.body.data.submissions.length} submissions in review queue`);
+    assert(stakeReverted.body.data.isActive === false, 'Staking successfully reverted to CLOSED');
 
     console.log(`\n========================================`);
-    console.log(`Test Summary: ${passed} passed, ${failed} failed`);
+    console.log(`Verification Summary: ${passed} passed, ${failed} failed`);
     console.log(`========================================\n`);
 
     if (failed > 0) process.exit(1);

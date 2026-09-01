@@ -10,11 +10,13 @@ import {
   Lock,
   Zap,
   FileCheck2,
-  TrendingUp,
-  ArrowRight,
-  CheckCircle2,
   Clock,
-  ExternalLink,
+  XCircle,
+  CheckCircle2,
+  ArrowRight,
+  RefreshCw,
+  Activity,
+  ClipboardList,
 } from "lucide-react";
 import { formatNumber, shortenAddress } from "@/lib/utils";
 
@@ -23,6 +25,7 @@ export default function AdminOverviewPage() {
   const [loading, setLoading] = useState(true);
   const [mintToggling, setMintToggling] = useState(false);
   const [stakingToggling, setStakingToggling] = useState(false);
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
 
   const fetchOverview = async () => {
     setLoading(true);
@@ -37,7 +40,7 @@ export default function AdminOverviewPage() {
         setData(json.data);
       }
     } catch (err) {
-      console.error("Admin overview fetch failed:", err);
+      console.error("[Admin Overview Fetch Error]:", err);
     } finally {
       setLoading(false);
     }
@@ -60,6 +63,8 @@ export default function AdminOverviewPage() {
       const json = await res.json();
       if (json.success) {
         setData({ ...data, mintStatus: newStatus });
+        setToastMessage(`NFT Mint is now ${newStatus ? "ACTIVE (OPEN)" : "DISABLED (CLOSED)"}`);
+        setTimeout(() => setToastMessage(null), 3000);
       }
     } catch (err) {
       console.error("Failed to toggle mint:", err);
@@ -81,6 +86,8 @@ export default function AdminOverviewPage() {
       const json = await res.json();
       if (json.success) {
         setData({ ...data, stakingStatus: newStatus });
+        setToastMessage(`Staking Vault is now ${newStatus ? "ACTIVE (OPEN)" : "DISABLED (CLOSED)"}`);
+        setTimeout(() => setToastMessage(null), 3000);
       }
     } catch (err) {
       console.error("Failed to toggle staking:", err);
@@ -90,63 +97,143 @@ export default function AdminOverviewPage() {
   };
 
   return (
-    <div className="flex-1 flex flex-col">
+    <div className="flex-1 flex flex-col min-h-screen">
       <AdminHeader
-        title="Admin Command Overview"
-        subtitle="Real-time telemetry, master module switches, and recent community submissions."
+        title="Admin Command Center"
+        subtitle="Real-time telemetry, master module switches, and waitlist submission activity."
         onRefresh={fetchOverview}
         isLoading={loading}
       />
 
-      <div className="p-6 sm:p-8 space-y-8 max-w-7xl w-full mx-auto">
-        {/* KPI STATS ROW */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          <div className="p-5 rounded-2xl bg-[#0B130E] border border-stonks-green/25">
-            <div className="flex items-center justify-between text-xs text-muted mb-2">
+      <div className="p-6 sm:p-8 space-y-8 max-w-7xl w-full mx-auto flex-1">
+        {/* Toast Alert */}
+        {toastMessage && (
+          <div className="p-4 rounded-2xl bg-stonks-green/10 border border-stonks-green/30 text-xs font-bold text-stonks-green flex items-center gap-2 shadow-neon-green">
+            <CheckCircle2 className="w-4 h-4" />
+            <span>{toastMessage}</span>
+          </div>
+        )}
+
+        {/* 9 REAL DATABASE OVERVIEW CARDS */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {/* 1. Total Users */}
+          <div className="p-5 rounded-2xl bg-[#0B130E] border border-stonks-green/25 space-y-2">
+            <div className="flex items-center justify-between text-xs text-muted">
               <span className="font-semibold uppercase">Total Users</span>
               <Users className="w-4 h-4 text-stonks-green" />
             </div>
             <div className="text-2xl font-black text-white font-mono">
               {data ? formatNumber(data.totalUsers) : "..."}
             </div>
-            <div className="text-[11px] text-stonks-green mt-1">Verified on-chain participants</div>
+            <div className="text-[11px] text-muted">Registered in database</div>
           </div>
 
-          <div className="p-5 rounded-2xl bg-[#0B130E] border border-stonks-cyan/25">
-            <div className="flex items-center justify-between text-xs text-muted mb-2">
-              <span className="font-semibold uppercase">Active Quests</span>
-              <Target className="w-4 h-4 text-stonks-cyan" />
+          {/* 2. Total Waitlist Entries */}
+          <div className="p-5 rounded-2xl bg-[#0B130E] border border-stonks-cyan/25 space-y-2">
+            <div className="flex items-center justify-between text-xs text-muted">
+              <span className="font-semibold uppercase">Total Waitlist Entries</span>
+              <ClipboardList className="w-4 h-4 text-stonks-cyan" />
             </div>
             <div className="text-2xl font-black text-stonks-cyan font-mono">
-              {data ? `${data.activeQuests} Tasks` : "..."}
+              {data ? formatNumber(data.totalWaitlistEntries) : "..."}
             </div>
-            <div className="text-[11px] text-muted mt-1">Out of {data?.totalQuests || 6} total created</div>
+            <div className="text-[11px] text-muted">Total task submissions logged</div>
           </div>
 
-          <div className="p-5 rounded-2xl bg-[#0B130E] border border-surface-border">
-            <div className="flex items-center justify-between text-xs text-muted mb-2">
-              <span className="font-semibold uppercase">Completed Quests</span>
-              <FileCheck2 className="w-4 h-4 text-muted" />
+          {/* 3. Completed / Approved Entries */}
+          <div className="p-5 rounded-2xl bg-[#0B130E] border border-stonks-green/25 space-y-2">
+            <div className="flex items-center justify-between text-xs text-muted">
+              <span className="font-semibold uppercase">Completed Entries</span>
+              <CheckCircle2 className="w-4 h-4 text-stonks-green" />
             </div>
-            <div className="text-2xl font-black text-white font-mono">
-              {data ? formatNumber(data.completedQuests) : "..."}
+            <div className="text-2xl font-black text-stonks-green font-mono">
+              {data ? formatNumber(data.completedEntries) : "..."}
             </div>
-            <div className="text-[11px] text-muted mt-1">{data?.pendingSubmissions || 0} pending review</div>
+            <div className="text-[11px] text-stonks-green font-mono">Approved & verified</div>
           </div>
 
-          <div className="p-5 rounded-2xl bg-[#0B130E] border border-surface-border">
-            <div className="flex items-center justify-between text-xs text-muted mb-2">
-              <span className="font-semibold uppercase">Total Points Pool</span>
+          {/* 4. Pending Entries */}
+          <div className="p-5 rounded-2xl bg-[#0B130E] border border-amber-500/25 space-y-2">
+            <div className="flex items-center justify-between text-xs text-muted">
+              <span className="font-semibold uppercase">Pending Entries</span>
+              <Clock className="w-4 h-4 text-amber-400" />
+            </div>
+            <div className="text-2xl font-black text-amber-400 font-mono">
+              {data ? formatNumber(data.pendingEntries) : "..."}
+            </div>
+            <div className="text-[11px] text-amber-400">Awaiting moderator review</div>
+          </div>
+
+          {/* 5. Rejected Entries */}
+          <div className="p-5 rounded-2xl bg-[#0B130E] border border-stonks-red/25 space-y-2">
+            <div className="flex items-center justify-between text-xs text-muted">
+              <span className="font-semibold uppercase">Rejected Entries</span>
+              <XCircle className="w-4 h-4 text-stonks-red" />
+            </div>
+            <div className="text-2xl font-black text-stonks-red font-mono">
+              {data ? formatNumber(data.rejectedEntries) : "..."}
+            </div>
+            <div className="text-[11px] text-muted">Failed verification</div>
+          </div>
+
+          {/* 6. Total Points Awarded */}
+          <div className="p-5 rounded-2xl bg-[#0B130E] border border-stonks-green/25 space-y-2">
+            <div className="flex items-center justify-between text-xs text-muted">
+              <span className="font-semibold uppercase">Total Points Awarded</span>
               <Zap className="w-4 h-4 text-stonks-green" />
             </div>
             <div className="text-2xl font-black text-stonks-green font-mono">
-              {data ? formatNumber(data.totalPoints) : "..."} PTS
+              {data ? `${formatNumber(data.totalPointsAwarded)} PTS` : "..."}
             </div>
-            <div className="text-[11px] text-muted mt-1">Total points in circulation</div>
+            <div className="text-[11px] text-muted">Distributed to community</div>
+          </div>
+
+          {/* 7. Active Tasks */}
+          <div className="p-5 rounded-2xl bg-[#0B130E] border border-surface-border space-y-2">
+            <div className="flex items-center justify-between text-xs text-muted">
+              <span className="font-semibold uppercase">Active Tasks</span>
+              <Target className="w-4 h-4 text-stonks-cyan" />
+            </div>
+            <div className="text-2xl font-black text-white font-mono">
+              {data ? `${data.activeTasks} Tasks` : "..."}
+            </div>
+            <div className="text-[11px] text-muted">Live on public waitlist</div>
+          </div>
+
+          {/* 8. Mint Status */}
+          <div className="p-5 rounded-2xl bg-[#0B130E] border border-purple-500/25 space-y-2">
+            <div className="flex items-center justify-between text-xs text-muted">
+              <span className="font-semibold uppercase">Mint Status</span>
+              <Coins className="w-4 h-4 text-purple-400" />
+            </div>
+            <div className="text-xl font-bold font-mono">
+              <span className={data?.mintStatus ? "text-stonks-green" : "text-stonks-red"}>
+                {data?.mintStatus ? "● LIVE (OPEN)" : "○ CLOSED"}
+              </span>
+            </div>
+            <div className="text-[11px] text-muted">
+              {data?.mintSettings?.priceEth || 0.08} ETH / Max {data?.mintSettings?.maxSupply || 3333}
+            </div>
+          </div>
+
+          {/* 9. Staking Status */}
+          <div className="p-5 rounded-2xl bg-[#0B130E] border border-blue-500/25 space-y-2">
+            <div className="flex items-center justify-between text-xs text-muted">
+              <span className="font-semibold uppercase">Staking Status</span>
+              <Lock className="w-4 h-4 text-blue-400" />
+            </div>
+            <div className="text-xl font-bold font-mono">
+              <span className={data?.stakingStatus ? "text-stonks-cyan" : "text-stonks-red"}>
+                {data?.stakingStatus ? "● ACTIVE (OPEN)" : "○ CLOSED"}
+              </span>
+            </div>
+            <div className="text-[11px] text-muted">
+              {data?.stakingSettings?.apyPercent || 42.5}% APY Vault
+            </div>
           </div>
         </div>
 
-        {/* QUICK CONTROL SWITCHES: MINT & STAKING */}
+        {/* QUICK CONTROL TOGGLES: MINT & STAKING */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {/* Mint Control Switch */}
           <div className="p-6 rounded-3xl bg-[#0B130E] border border-surface-border flex flex-col justify-between space-y-4">
@@ -166,7 +253,7 @@ export default function AdminOverviewPage() {
                 type="button"
                 onClick={handleToggleMint}
                 disabled={mintToggling}
-                className={`relative inline-flex h-8 w-16 items-center rounded-full transition-colors ${
+                className={`relative inline-flex h-8 w-16 items-center rounded-full transition-colors cursor-pointer ${
                   data?.mintStatus ? "bg-stonks-green shadow-neon-green" : "bg-[#172A1F]"
                 }`}
               >
@@ -182,10 +269,13 @@ export default function AdminOverviewPage() {
 
             <div className="pt-4 border-t border-surface-border flex items-center justify-between text-xs font-mono">
               <span className="text-muted">
-                Status: <strong className={data?.mintStatus ? "text-stonks-green" : "text-stonks-red"}>{data?.mintStatus ? "LIVE (OPEN)" : "DISABLED (CLOSED)"}</strong>
+                Status:{" "}
+                <strong className={data?.mintStatus ? "text-stonks-green" : "text-stonks-red"}>
+                  {data?.mintStatus ? "LIVE (OPEN)" : "DISABLED (CLOSED)"}
+                </strong>
               </span>
               <Link href="/admin/mint" className="text-stonks-green hover:underline flex items-center gap-1">
-                <span>Manage Mint Settings</span>
+                <span>Configure Parameters</span>
                 <ArrowRight className="w-3.5 h-3.5" />
               </Link>
             </div>
@@ -209,7 +299,7 @@ export default function AdminOverviewPage() {
                 type="button"
                 onClick={handleToggleStaking}
                 disabled={stakingToggling}
-                className={`relative inline-flex h-8 w-16 items-center rounded-full transition-colors ${
+                className={`relative inline-flex h-8 w-16 items-center rounded-full transition-colors cursor-pointer ${
                   data?.stakingStatus ? "bg-stonks-cyan shadow-neon-cyan" : "bg-[#172A1F]"
                 }`}
               >
@@ -225,28 +315,31 @@ export default function AdminOverviewPage() {
 
             <div className="pt-4 border-t border-surface-border flex items-center justify-between text-xs font-mono">
               <span className="text-muted">
-                Status: <strong className={data?.stakingStatus ? "text-stonks-cyan" : "text-stonks-red"}>{data?.stakingStatus ? "ACTIVE (OPEN)" : "DISABLED (CLOSED)"}</strong>
+                Status:{" "}
+                <strong className={data?.stakingStatus ? "text-stonks-cyan" : "text-stonks-red"}>
+                  {data?.stakingStatus ? "ACTIVE (OPEN)" : "DISABLED (CLOSED)"}
+                </strong>
               </span>
               <Link href="/admin/staking" className="text-stonks-cyan hover:underline flex items-center gap-1">
-                <span>Manage Staking Settings</span>
+                <span>Configure Parameters</span>
                 <ArrowRight className="w-3.5 h-3.5" />
               </Link>
             </div>
           </div>
         </div>
 
-        {/* RECENT SUBMISSIONS TABLE */}
-        <div className="p-6 rounded-3xl bg-[#0B130E] border border-surface-border space-y-4">
+        {/* RECENT SUBMISSIONS FEED */}
+        <div className="p-6 rounded-3xl bg-[#0B130E] border border-surface-border space-y-4 shadow-xl">
           <div className="flex items-center justify-between">
             <div>
-              <h2 className="text-lg font-bold text-white">Recent Submissions Feed</h2>
-              <p className="text-xs text-muted">Latest quest tasks recorded from the community.</p>
+              <h2 className="text-lg font-bold text-white">Recent Waitlist Submissions</h2>
+              <p className="text-xs text-muted">Real-time user waitlist applications from database.</p>
             </div>
             <Link
-              href="/admin/submissions"
+              href="/admin/waitlist"
               className="text-xs text-stonks-green font-bold hover:underline flex items-center gap-1"
             >
-              <span>View All Submissions</span>
+              <span>Manage Full Waitlist</span>
               <ArrowRight className="w-3.5 h-3.5" />
             </Link>
           </div>
@@ -262,21 +355,21 @@ export default function AdminOverviewPage() {
                   <th className="py-3 px-4 text-right">Points</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-surface-border">
+              <tbody className="divide-y divide-surface-border/60">
                 {data?.recentSubmissions && data.recentSubmissions.length > 0 ? (
                   data.recentSubmissions.map((s: any) => (
                     <tr key={s.id} className="hover:bg-surface-subtle transition-colors">
-                      <td className="py-3 px-4 font-bold text-white">{s.user}</td>
-                      <td className="py-3 px-4 text-muted">{shortenAddress(s.walletAddress)}</td>
-                      <td className="py-3 px-4 text-muted truncate max-w-xs">{s.taskTitle}</td>
+                      <td className="py-3 px-4 font-bold text-stonks-cyan">{s.user}</td>
+                      <td className="py-3 px-4 text-muted">{shortenAddress(s.walletAddress, 4)}</td>
+                      <td className="py-3 px-4 text-white truncate max-w-xs">{s.taskTitle}</td>
                       <td className="py-3 px-4">
                         <span
                           className={`px-2 py-0.5 rounded text-[10px] font-bold ${
                             s.status === "APPROVED"
-                              ? "bg-stonks-green/15 text-stonks-green"
+                              ? "bg-stonks-green/15 text-stonks-green border border-stonks-green/30"
                               : s.status === "PENDING"
-                              ? "bg-amber-400/15 text-amber-300"
-                              : "bg-stonks-red/15 text-stonks-red"
+                              ? "bg-amber-400/15 text-amber-300 border border-amber-400/30"
+                              : "bg-stonks-red/15 text-stonks-red border border-stonks-red/30"
                           }`}
                         >
                           {s.status}
@@ -289,8 +382,8 @@ export default function AdminOverviewPage() {
                   ))
                 ) : (
                   <tr>
-                    <td colSpan={5} className="py-6 text-center text-muted">
-                      No recent quest submissions recorded yet.
+                    <td colSpan={5} className="py-8 text-center text-muted">
+                      No waitlist submissions recorded in database yet.
                     </td>
                   </tr>
                 )}

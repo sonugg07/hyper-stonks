@@ -17,7 +17,7 @@ import {
   ChevronDown,
   Sparkles,
   Shield,
-  Target,
+  ClipboardList,
 } from "lucide-react";
 
 export const Navbar: React.FC = () => {
@@ -39,7 +39,7 @@ export const Navbar: React.FC = () => {
 
   const navLinks = [
     { name: "Home", href: "/" },
-    { name: "Quests", href: "/quests", badge: "HOT" },
+    { name: "Waitlist", href: "/waitlist", badge: "HOT" },
     { name: "Mint", href: "/mint" },
     { name: "Staking", href: "/staking" },
   ];
@@ -69,7 +69,7 @@ export const Navbar: React.FC = () => {
           {/* Desktop Navigation Links */}
           <nav className="hidden md:flex items-center gap-1 bg-[#0B130E]/80 backdrop-blur-md px-4 py-1.5 rounded-full border border-stonks-green/15">
             {navLinks.map((link) => {
-              const isActive = pathname === link.href;
+              const isActive = pathname === link.href || (link.href === "/waitlist" && pathname === "/quests");
               return (
                 <Link
                   key={link.name}
@@ -158,12 +158,12 @@ export const Navbar: React.FC = () => {
                       </button>
 
                       <Link
-                        href="/quests"
+                        href="/waitlist"
                         onClick={() => setIsUserDropdownOpen(false)}
                         className="w-full flex items-center gap-2 px-3 py-2 text-xs text-muted hover:text-white hover:bg-surface-subtle rounded-lg transition-colors text-left"
                       >
-                        <Target className="w-4 h-4 text-stonks-green" />
-                        <span>Community Quests</span>
+                        <ClipboardList className="w-4 h-4 text-stonks-green" />
+                        <span>Waitlist Entry</span>
                       </Link>
 
                       <button
@@ -212,7 +212,7 @@ export const Navbar: React.FC = () => {
           <div className="md:hidden bg-[#0B130E]/95 backdrop-blur-2xl border-b border-stonks-green/20 px-6 py-6 space-y-4 shadow-2xl">
             <div className="flex flex-col space-y-2">
               {navLinks.map((link) => {
-                const isActive = pathname === link.href;
+                const isActive = pathname === link.href || (link.href === "/waitlist" && pathname === "/quests");
                 return (
                   <Link
                     key={link.name}

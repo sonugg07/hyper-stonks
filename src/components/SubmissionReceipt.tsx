@@ -3,7 +3,7 @@
 import React, { useEffect } from "react";
 import Link from "next/link";
 import confetti from "canvas-confetti";
-import { CheckCircle2, Award, Zap, Calendar, Hash, ArrowRight, Share2, Copy, Check, Coins, Target } from "lucide-react";
+import { CheckCircle2, Award, Zap, Calendar, Hash, ArrowRight, Share2, Copy, Check, Coins, ClipboardList } from "lucide-react";
 import { formatNumber, shortenAddress } from "@/lib/utils";
 
 interface SubmissionReceiptProps {
@@ -12,9 +12,10 @@ interface SubmissionReceiptProps {
     timestamp: string;
     pointsEarned: number;
     totalUserPoints: number;
-    questsCompleted: number;
+    tasksCompleted: number;
     walletAddress: string;
     xHandle: string;
+    status?: string;
     referralCode?: string;
   };
   onClose?: () => void;
@@ -27,8 +28,8 @@ export const SubmissionReceipt: React.FC<SubmissionReceiptProps> = ({ data }) =>
     // Fire celebratory confetti on mount
     try {
       confetti({
-        particleCount: 80,
-        spread: 70,
+        particleCount: 90,
+        spread: 80,
         origin: { y: 0.6 },
         colors: ["#00FFA3", "#00E5FF", "#FFFFFF", "#FFD700"],
       });
@@ -38,8 +39,8 @@ export const SubmissionReceipt: React.FC<SubmissionReceiptProps> = ({ data }) =>
   }, []);
 
   const referralUrl = typeof window !== "undefined"
-    ? `${window.location.origin}/quests?ref=${data.referralCode || "STONKS"}`
-    : `https://hype-stonks.io/quests?ref=${data.referralCode || "STONKS"}`;
+    ? `${window.location.origin}/waitlist?ref=${data.referralCode || "STONKS"}`
+    : `https://hype-stonks.io/waitlist?ref=${data.referralCode || "STONKS"}`;
 
   const handleCopyReferral = () => {
     navigator.clipboard.writeText(referralUrl);
@@ -68,15 +69,15 @@ export const SubmissionReceipt: React.FC<SubmissionReceiptProps> = ({ data }) =>
         </div>
 
         <span className="px-3 py-1 bg-stonks-green/15 border border-stonks-green/30 rounded-full text-xs font-mono font-bold text-stonks-green uppercase tracking-widest">
-          ✓ Verified & Registered
+          ✓ Waitlist Entry Verified
         </span>
 
         <h2 className="text-2xl sm:text-3xl font-black text-white tracking-tight">
-          ENTRY SUBMITTED SUCCESSFULLY!
+          Waitlist Entry Submitted
         </h2>
 
         <p className="text-sm text-muted max-w-md">
-          Your quest tasks have been recorded and your points have been immediately credited to your EVM wallet.
+          You've successfully joined the Hype Stonks waitlist. Your verified conviction points have been credited to your on-chain wallet.
         </p>
       </div>
 
@@ -99,7 +100,7 @@ export const SubmissionReceipt: React.FC<SubmissionReceiptProps> = ({ data }) =>
             <Award className="w-6 h-6" />
           </div>
           <div>
-            <div className="text-xs text-muted uppercase font-semibold">Total Score</div>
+            <div className="text-xs text-muted uppercase font-semibold">Total Balance</div>
             <div className="text-xl sm:text-2xl font-black text-white font-mono">
               {formatNumber(data.totalUserPoints)} PTS
             </div>
@@ -128,14 +129,16 @@ export const SubmissionReceipt: React.FC<SubmissionReceiptProps> = ({ data }) =>
         </div>
 
         <div className="flex items-center justify-between py-1 border-b border-surface-border/50">
-          <span className="text-muted">Quest Completion</span>
-          <span className="text-stonks-green font-bold">100% (Verified)</span>
+          <span className="text-muted">Submission Status</span>
+          <span className="text-stonks-green font-bold">
+            {data.status || "APPROVED"} (Verified)
+          </span>
         </div>
 
         <div className="flex items-center justify-between py-1">
           <span className="text-muted flex items-center gap-1.5">
             <Calendar className="w-3.5 h-3.5 text-muted" />
-            Timestamp
+            Submission Timestamp
           </span>
           <span className="text-muted-foreground">{formattedDate}</span>
         </div>
@@ -147,7 +150,7 @@ export const SubmissionReceipt: React.FC<SubmissionReceiptProps> = ({ data }) =>
           <div className="flex items-center justify-between mb-2">
             <span className="text-xs font-bold text-stonks-green flex items-center gap-1.5 uppercase tracking-wider">
               <Share2 className="w-4 h-4" />
-              Boost Your Score: Refer Friends
+              Boost Your Waitlist Rank: Refer Friends
             </span>
             <span className="text-[10px] font-mono text-muted bg-surface-subtle px-2 py-0.5 rounded">
               +250 PTS Each
@@ -184,11 +187,11 @@ export const SubmissionReceipt: React.FC<SubmissionReceiptProps> = ({ data }) =>
       {/* Actions */}
       <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 gap-3">
         <Link
-          href="/quests"
+          href="/waitlist"
           className="w-full py-3.5 px-4 rounded-xl bg-surface-subtle border border-surface-border hover:border-stonks-green/40 text-white font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-2 hover:bg-surface-border transition-all text-center"
         >
-          <Target className="w-4 h-4 text-stonks-green" />
-          <span>View All Quests</span>
+          <ClipboardList className="w-4 h-4 text-stonks-green" />
+          <span>Waitlist Overview</span>
         </Link>
 
         <Link

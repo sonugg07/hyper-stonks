@@ -11,12 +11,13 @@ model User {
   id              String             @id @default(cuid())
   walletAddress   String             @unique
   xHandle         String?            @unique
+  status          String             @default("ACTIVE") // ACTIVE, PENDING, BANNED
+  isBanned        Boolean            @default(false)
   email           String?
   avatarUrl       String?
   referralCode    String             @unique
   referredBy      String?
   totalPoints     Int                @default(0)
-  isBanned        Boolean            @default(false)
   role            String             @default("USER") // USER, ADMIN
   createdAt       DateTime           @default(now())
   updatedAt       DateTime           @updatedAt
@@ -51,7 +52,7 @@ model QuestSubmission {
   questId         String
   walletAddress   String
   submittedData   String            // Handle, comment URL, etc.
-  status          String            @default("PENDING") // PENDING, APPROVED, REJECTED
+  status          String            @default("APPROVED") // PENDING, APPROVED, REJECTED
   pointsAwarded   Int               @default(0)
   proofUrl        String?
   rejectionReason String?
@@ -67,7 +68,7 @@ model PointsTransaction {
   id              String            @id @default(cuid())
   userId          String
   amount          Int
-  type            String            // QUEST_REWARD, REFERRAL_BONUS, ADMIN_ADJUSTMENT, STAKING_REWARD
+  type            String            // QUEST_REWARD, WAITLIST_REWARD, REFERRAL_BONUS, ADMIN_ADJUSTMENT, STAKING_REWARD
   description     String
   referenceId     String?
   createdAt       DateTime          @default(now())

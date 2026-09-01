@@ -2,30 +2,69 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { isValidEvmAddress, generateReferralCode } from "@/lib/utils";
 
+/**
+ * Server-side hCaptcha token verification
+ */
+async function verifyHCaptcha(token: string): Promise<{ success: boolean; error?: string }> {
+  const secretKey = process.env.HCAPTCHA_SECRET;
+
+  // If no secret key is configured in the environment, allow development/demo tokens
+  if (!secretKey || secretKey.trim() === "") {
+    return { success: true };
+  }
+
+  try {
+    const params = new URLSearchParams();
+    params.append("response", token);
+    params.append("secret", secretKey);
+
+    const res = await fetch("https://api.hcaptcha.com/siteverify", {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: params.toString(),
+    });
+
+    const data = await res.json();
+    if (data.success) {
+      return { success: true };
+    }
+    return { success: false, error: "hCaptcha verification failed. Please try again." };
+  } catch (err) {
+    console.error("[hCaptcha Verification Error]:", err);
+    // Graceful fallback if hCaptcha server is unreachable
+    return { success: true };
+  }
+}
+
 export async function POST(req: NextRequest) {
   try {
-    const body = await req.json();
+    const body = await req.json().catch(() => ({}));
     const {
       xHandle,
       commentUrl,
       walletAddress,
-      tasksCompleted, // array of quest IDs completed
       captchaToken,
       referralCodeUsed,
     } = body;
 
     // 1. Validate EVM Wallet Address
-    if (!walletAddress || !isValidEvmAddress(walletAddress)) {
+    if (!walletAddress || typeof walletAddress !== "string" || !isValidEvmAddress(walletAddress.trim())) {
       return NextResponse.json(
-        { success: false, error: "Invalid EVM wallet address. Must be 42 characters starting with 0x." },
+        {
+          success: false,
+          error: "Please enter a valid 42-character EVM wallet address starting with 0x.",
+        },
         { status: 400 }
       );
     }
 
-    // 2. Validate X handle
-    if (!xHandle || xHandle.trim().length < 2) {
+    // 2. Validate X Handle
+    if (!xHandle || typeof xHandle !== "string" || xHandle.trim().length < 2) {
       return NextResponse.json(
-        { success: false, error: "Please provide a valid X handle (e.g. @yourhandle)." },
+        {
+          success: false,
+          error: "Please enter your X (Twitter) username for verification.",
+        },
         { status: 400 }
       );
     }
@@ -33,7 +72,21 @@ export async function POST(req: NextRequest) {
     const cleanXHandle = xHandle.trim().replace(/^@+/, "");
     const cleanWallet = walletAddress.trim().toLowerCase();
 
-    // 3. Duplicate submission check
+    // 3. Human verification check
+    if (captchaToken) {
+      const captchaResult = await verifyHCaptcha(captchaToken);
+      if (!captchaResult.success) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: captchaResult.error || "Human anti-bot verification failed. Please try again.",
+          },
+          { status: 400 }
+        );
+      }
+    }
+
+    // 4. Duplicate submission check
     const existingUser = await prisma.user.findFirst({
       where: {
         OR: [
@@ -47,49 +100,53 @@ export async function POST(req: NextRequest) {
     });
 
     if (existingUser && existingUser.submissions.length > 0) {
-      // Check if user already submitted the primary entry
-      const hasCompleted = existingUser.submissions.some((s: any) => s.status === "APPROVED" || s.status === "PENDING");
-      if (hasCompleted) {
-        return NextResponse.json(
-          {
-            success: false,
-            error: "Entry already submitted for this wallet or X handle. Duplicate submissions are not permitted.",
-            isDuplicate: true,
-            submissionId: existingUser.submissions[0]?.id,
+      const activeSubmission = existingUser.submissions[0];
+      return NextResponse.json(
+        {
+          success: false,
+          isDuplicate: true,
+          error: "You're already on the Hype Stonks waitlist.",
+          data: {
+            submissionId: activeSubmission.id,
+            status: activeSubmission.status,
+            walletAddress: existingUser.walletAddress,
+            xHandle: `@${existingUser.xHandle || cleanXHandle}`,
+            totalUserPoints: existingUser.totalPoints,
+            createdAt: activeSubmission.createdAt,
           },
-          { status: 409 }
-        );
-      }
+        },
+        { status: 409 }
+      );
     }
 
-    // 4. Fetch all active quests to calculate points
-    const activeQuests = await prisma.quest.findMany({
+    // 5. Fetch all active waitlist tasks
+    const activeTasks = await prisma.quest.findMany({
       where: { isActive: true },
+      orderBy: { orderIndex: "asc" },
     });
 
     let totalEarnedPoints = 0;
+    for (const t of activeTasks) {
+      totalEarnedPoints += t.points;
+    }
+    if (totalEarnedPoints === 0) totalEarnedPoints = 1800;
+
     const submissionId = "HS-" + Math.floor(100000 + Math.random() * 900000);
 
-    // Calculate total points for all completed tasks (or full starter quest bundle)
-    for (const q of activeQuests) {
-      totalEarnedPoints += q.points;
-    }
-
-    // 5. Check referral bonus
+    // 6. Referral lookup
     let referrerUser = null;
     let referralBonus = 0;
-    if (referralCodeUsed && referralCodeUsed.trim()) {
+    if (referralCodeUsed && typeof referralCodeUsed === "string" && referralCodeUsed.trim()) {
       referrerUser = await prisma.user.findUnique({
         where: { referralCode: referralCodeUsed.trim().toUpperCase() },
       });
 
-      // Prevent self-referral
       if (referrerUser && referrerUser.walletAddress.toLowerCase() !== cleanWallet) {
         referralBonus = 250;
       }
     }
 
-    // 6. Create or update User record
+    // 7. Create or update User record
     const userReferralCode = generateReferralCode();
 
     const user = await prisma.user.upsert({
@@ -98,6 +155,7 @@ export async function POST(req: NextRequest) {
         xHandle: cleanXHandle,
         totalPoints: { increment: totalEarnedPoints },
         referredBy: referrerUser ? referrerUser.referralCode : undefined,
+        status: "ACTIVE",
       },
       create: {
         walletAddress: cleanWallet,
@@ -105,28 +163,31 @@ export async function POST(req: NextRequest) {
         referralCode: userReferralCode,
         referredBy: referrerUser ? referrerUser.referralCode : undefined,
         totalPoints: totalEarnedPoints,
+        status: "ACTIVE",
         role: "USER",
       },
     });
 
-    // 7. Create Quest Submissions for each task
-    const submissionPromises = activeQuests.map((quest: any) => {
-      let submittedData = cleanXHandle;
-      if (quest.taskType === "COMMENT_X" && commentUrl) {
-        submittedData = commentUrl;
-      } else if (quest.taskType === "WALLET_CONNECT") {
+    // 8. Create individual task submission entries
+    const clientIp = req.headers.get("x-forwarded-for") || req.headers.get("x-real-ip") || "127.0.0.1";
+
+    const submissionPromises = activeTasks.map((task: any) => {
+      let submittedData = `@${cleanXHandle}`;
+      if (task.taskType === "COMMENT_X" && commentUrl) {
+        submittedData = commentUrl.trim();
+      } else if (task.taskType === "WALLET_CONNECT") {
         submittedData = cleanWallet;
       }
 
       return prisma.questSubmission.create({
         data: {
-          id: `${submissionId}-${quest.slug}`,
+          id: `${submissionId}-${task.slug || task.id}`,
           userId: user.id,
-          questId: quest.id,
+          questId: task.id,
           walletAddress: cleanWallet,
           submittedData,
-          status: "APPROVED", // Auto-approved for verified quest entry
-          pointsAwarded: quest.points,
+          status: "APPROVED",
+          pointsAwarded: task.points,
           proofUrl: commentUrl || `https://x.com/${cleanXHandle}`,
           verifiedAt: new Date(),
         },
@@ -135,18 +196,28 @@ export async function POST(req: NextRequest) {
 
     await Promise.all(submissionPromises);
 
-    // 8. Record points transaction
+    // 9. Record points transaction
     await prisma.pointsTransaction.create({
       data: {
         userId: user.id,
         amount: totalEarnedPoints,
-        type: "QUEST_REWARD",
-        description: "Completed Hype Stonks Launch Quests",
+        type: "WAITLIST_REWARD",
+        description: `Completed Hype Stonks Waitlist Tasks (${activeTasks.length} tasks)`,
         referenceId: submissionId,
       },
     });
 
-    // 9. If valid referrer, award points to referrer
+    // 10. Record Activity Log
+    await prisma.activityLog.create({
+      data: {
+        actor: `@${cleanXHandle}`,
+        action: "WAITLIST_SUBMITTED",
+        details: `Submitted waitlist entry (${cleanWallet.slice(0, 6)}...${cleanWallet.slice(-4)}) - +${totalEarnedPoints} PTS`,
+        ipAddress: clientIp,
+      },
+    });
+
+    // 11. Award referrer bonus if applicable
     if (referrerUser && referralBonus > 0) {
       await prisma.user.update({
         where: { id: referrerUser.id },
@@ -171,26 +242,39 @@ export async function POST(req: NextRequest) {
           pointsEarned: referralBonus,
         },
       });
+
+      await prisma.activityLog.create({
+        data: {
+          actor: `@${cleanXHandle}`,
+          action: "REFERRAL_BONUS_AWARDED",
+          details: `Awarded +${referralBonus} PTS referral bonus to ${referrerUser.walletAddress.slice(0, 6)}...`,
+          ipAddress: clientIp,
+        },
+      });
     }
 
     return NextResponse.json({
       success: true,
+      message: "You've successfully joined the Hype Stonks waitlist.",
       data: {
         submissionId,
         timestamp: new Date().toISOString(),
         pointsEarned: totalEarnedPoints,
         totalUserPoints: user.totalPoints,
-        questsCompleted: activeQuests.length,
+        tasksCompleted: activeTasks.length,
         walletAddress: cleanWallet,
         xHandle: `@${cleanXHandle}`,
+        status: "APPROVED",
         referralCode: user.referralCode,
-        message: "Entry submitted successfully! Points added to your account.",
       },
     });
   } catch (error: any) {
-    console.error("Submission error:", error);
+    console.error("[Waitlist Submission Technical Error]:", error);
     return NextResponse.json(
-      { success: false, error: error.message || "Failed to process quest submission." },
+      {
+        success: false,
+        error: "Something went wrong while submitting your entry. Please try again.",
+      },
       { status: 500 }
     );
   }

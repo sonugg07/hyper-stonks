@@ -3,11 +3,11 @@
 import React, { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Logo } from "@/components/Logo";
-import { ShieldCheck, Lock, ArrowRight, AlertCircle, Sparkles } from "lucide-react";
+import { ShieldCheck, Lock, ArrowRight, AlertCircle } from "lucide-react";
 
 export default function AdminLoginPage() {
   const router = useRouter();
-  const [username, setUsername] = useState("admin");
+  const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -21,7 +21,7 @@ export default function AdminLoginPage() {
       const res = await fetch("/api/admin/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username, password }),
+        body: JSON.stringify({ username: username.trim(), password }),
       });
 
       const json = await res.json();
@@ -32,7 +32,7 @@ export default function AdminLoginPage() {
         router.push("/admin");
       }
     } catch (err) {
-      setError("Network error authenticating admin session.");
+      setError("Network error authenticating admin session. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -50,54 +50,37 @@ export default function AdminLoginPage() {
           </div>
           <div className="inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full bg-stonks-green/15 text-stonks-green text-xs font-mono font-bold">
             <ShieldCheck className="w-3.5 h-3.5" />
-            <span>SECURE CONTROL PORTAL</span>
+            <span>SECURE ADMIN PORTAL</span>
           </div>
           <h2 className="text-xl font-bold text-white tracking-tight">Admin Authentication</h2>
           <p className="text-xs text-muted">
-            Enter administrative credentials to manage quests, mint, staking, and user permissions.
+            Enter authorized administrator credentials to access platform controls.
           </p>
-        </div>
-
-        {/* Demo Credentials Helper Pill */}
-        <div className="p-3 rounded-xl bg-surface-subtle border border-surface-border text-xs text-muted flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Sparkles className="w-4 h-4 text-stonks-green" />
-            <span>Demo: <strong className="text-white font-mono">admin</strong> / <strong className="text-stonks-green font-mono">admin123</strong></span>
-          </div>
-          <button
-            type="button"
-            onClick={() => {
-              setUsername("admin");
-              setPassword("admin123");
-            }}
-            className="text-[10px] text-stonks-green hover:underline font-bold"
-          >
-            Autofill
-          </button>
         </div>
 
         <form onSubmit={handleLogin} className="space-y-4">
           <div className="space-y-1">
-            <label className="text-xs font-semibold text-muted uppercase">Username</label>
+            <label className="text-xs font-semibold text-muted uppercase">Administrator Username</label>
             <input
               type="text"
               value={username}
               onChange={(e) => setUsername(e.target.value)}
               required
-              className="w-full bg-[#070D0A] border border-surface-border focus:border-stonks-green rounded-xl px-4 py-2.5 text-xs sm:text-sm font-mono text-white outline-none"
+              placeholder="Username"
+              className="w-full bg-[#070D0A] border border-surface-border focus:border-stonks-green rounded-xl px-4 py-3 text-xs sm:text-sm font-mono text-white outline-none"
             />
           </div>
 
           <div className="space-y-1">
-            <label className="text-xs font-semibold text-muted uppercase">Password</label>
+            <label className="text-xs font-semibold text-muted uppercase">Secret Password</label>
             <div className="relative">
               <input
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
-                placeholder="••••••••"
-                className="w-full bg-[#070D0A] border border-surface-border focus:border-stonks-green rounded-xl px-4 py-2.5 text-xs sm:text-sm font-mono text-white outline-none"
+                placeholder="••••••••••••"
+                className="w-full bg-[#070D0A] border border-surface-border focus:border-stonks-green rounded-xl px-4 py-3 text-xs sm:text-sm font-mono text-white outline-none"
               />
               <Lock className="w-4 h-4 text-muted absolute right-3 top-1/2 -translate-y-1/2" />
             </div>
@@ -113,7 +96,7 @@ export default function AdminLoginPage() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full py-3.5 rounded-xl font-bold text-xs uppercase tracking-wider text-black bg-stonks-green hover:bg-stonks-green-dim transition-all shadow-neon-green flex items-center justify-center gap-2 disabled:opacity-50"
+            className="w-full py-3.5 rounded-xl font-bold text-xs uppercase tracking-wider text-black bg-stonks-green hover:bg-stonks-green-dim transition-all shadow-neon-green flex items-center justify-center gap-2 disabled:opacity-50 cursor-pointer"
           >
             {loading ? (
               <div className="w-4 h-4 border-2 border-black border-t-transparent rounded-full animate-spin" />
