@@ -68,8 +68,8 @@ export const Footer: React.FC = () => {
                 </Link>
               </li>
               <li>
-                <Link href="/admin" className="hover:text-stonks-green transition-colors">
-                  Admin Control Portal
+                <Link href="/mint" className="hover:text-stonks-green transition-colors">
+                  Genesis NFT
                 </Link>
               </li>
             </ul>
