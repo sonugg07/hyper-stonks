@@ -33,8 +33,11 @@ export function verifyAdminAuth(req: NextRequest): boolean {
     if (token === ADMIN_SECRET || token === "stonks_admin_super_secret_2026") return true;
   }
 
-  // 2. Check Custom Header
-  const customHeader = req.headers.get("x-admin-token");
+  // 2. Check Custom Headers
+  const customHeader =
+    req.headers.get("x-admin-token") ||
+    req.headers.get("x-admin-secret") ||
+    req.headers.get("x-admin-auth");
   if (customHeader === ADMIN_SECRET || customHeader === "stonks_admin_super_secret_2026") return true;
 
   // 3. Check Admin Session Cookie
