@@ -9,6 +9,7 @@ interface Web3ContextType {
   isConnected: boolean;
   isConnecting: boolean;
   chainId: number;
+  networkName: string;
   balance: string;
   connectWallet: (walletType?: "injected" | "metamask" | "coinbase" | "demo") => Promise<void>;
   disconnectWallet: () => void;
@@ -23,7 +24,8 @@ const Web3Context = createContext<Web3ContextType>({
   isConnected: false,
   isConnecting: false,
   chainId: 1,
-  balance: "0.00",
+  networkName: "Ethereum Mainnet",
+  balance: "0.00 ETH",
   connectWallet: async () => {},
   disconnectWallet: () => {},
   switchNetwork: async () => false,
@@ -36,13 +38,18 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({ children
   const [address, setAddress] = useState<string | null>(null);
   const [isConnecting, setIsConnecting] = useState(false);
   const [chainId, setChainId] = useState<number>(1);
-  const [balance, setBalance] = useState<string>("0.00");
+  const [balance, setBalance] = useState<string>("0.00 ETH");
   const [isDemoMode, setIsDemoMode] = useState<boolean>(false);
   const [providerName, setProviderName] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  // Helper to fetch live on-chain balance
-  const updateBalance = async (addr: string) => {
+  const networkName = getChainName(chainId);
+
+  // Helper to fetch live on-chain balance with dynamic native token symbol (HYPE / ETH / etc.)
+  const updateBalance = async (addr: string, cId: number = chainId) => {
+    const chainCfg = SUPPORTED_CHAINS[cId] || SUPPORTED_CHAINS[1];
+    const symbol = chainCfg?.nativeCurrency?.symbol || "ETH";
+
     if (typeof window !== "undefined" && (window as any).ethereum) {
       try {
         const balHex = await (window as any).ethereum.request({
@@ -50,10 +57,10 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({ children
           params: [addr, "latest"],
         });
         const balWei = BigInt(balHex);
-        const ethVal = (Number(balWei) / 1e18).toFixed(4);
-        setBalance(`${ethVal} ETH`);
+        const val = (Number(balWei) / 1e18).toFixed(4);
+        setBalance(`${val} ${symbol}`);
       } catch {
-        setBalance("1.00 ETH");
+        setBalance(`1.00 ${symbol}`);
       }
     }
   };
@@ -69,12 +76,11 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({ children
       setAddress(savedAddress);
       setIsDemoMode(savedDemo === "true");
       setProviderName(savedProvider || "EVM Wallet");
-      if (savedChain) setChainId(parseInt(savedChain, 10));
+      const initialChain = savedChain ? parseInt(savedChain, 10) : 1;
+      setChainId(initialChain);
 
       if (savedDemo !== "true" && typeof window !== "undefined" && (window as any).ethereum) {
-        updateBalance(savedAddress);
-      } else {
-        setBalance("2.50 ETH");
+        updateBalance(savedAddress, initialChain);
       }
     }
   }, []);
@@ -85,32 +91,29 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({ children
 
     try {
       if (walletType === "demo") {
-        // Explicitly requested Instant Demo Mode
         const demoAddress = "0x71C8364437a909D3E6c16C0D503C35c12808Ea7";
         setAddress(demoAddress);
         setIsDemoMode(true);
         setProviderName("Instant Demo Mode");
-        setBalance("2.50 ETH");
-        setChainId(1);
+        setBalance("2.50 HYPE");
+        setChainId(999);
         localStorage.setItem("stonks_wallet_address", demoAddress);
         localStorage.setItem("stonks_wallet_is_demo", "true");
         localStorage.setItem("stonks_wallet_provider", "Instant Demo Mode");
-        localStorage.setItem("stonks_wallet_chain_id", "1");
+        localStorage.setItem("stonks_wallet_chain_id", "999");
         return;
       }
 
-      // Check for real injected EVM provider
       if (typeof window === "undefined" || !(window as any).ethereum) {
         throw new Error(
           `No Web3 wallet extension found. Please install ${
             walletType === "metamask" ? "MetaMask" : walletType === "coinbase" ? "Coinbase Wallet" : "an EVM wallet extension"
-          } or use Instant Demo Mode.`
+          }.`
         );
       }
 
       let ethereum = (window as any).ethereum;
 
-      // Provider resolution for multi-wallet extensions
       if (ethereum.providers && Array.isArray(ethereum.providers)) {
         if (walletType === "metamask") {
           ethereum = ethereum.providers.find((p: any) => p.isMetaMask && !p.isBraveWallet) || ethereum.providers[0];
@@ -119,7 +122,6 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({ children
         }
       }
 
-      // Request real account authorization popup from the browser wallet
       const accounts: string[] = await ethereum.request({ method: "eth_requestAccounts" });
 
       if (!accounts || accounts.length === 0) {
@@ -142,7 +144,7 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({ children
       localStorage.setItem("stonks_wallet_provider", walletType);
       localStorage.setItem("stonks_wallet_chain_id", currentChainId.toString());
 
-      await updateBalance(userAddress);
+      await updateBalance(userAddress, currentChainId);
 
       // Listen for account changes
       ethereum.on("accountsChanged", (newAccounts: string[]) => {
@@ -151,7 +153,7 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({ children
         } else {
           setAddress(newAccounts[0]);
           localStorage.setItem("stonks_wallet_address", newAccounts[0]);
-          updateBalance(newAccounts[0]);
+          updateBalance(newAccounts[0], chainId);
         }
       });
 
@@ -160,6 +162,9 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({ children
         const newChain = parseInt(newChainHex, 16);
         setChainId(newChain);
         localStorage.setItem("stonks_wallet_chain_id", newChain.toString());
+        if (userAddress) {
+          updateBalance(userAddress, newChain);
+        }
       });
     } catch (err: any) {
       console.error("Wallet connection error:", err);
@@ -193,10 +198,11 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({ children
           params: [{ chainId: targetChainHex }],
         });
         setChainId(targetChainId);
+        if (address) updateBalance(address, targetChainId);
         return true;
       } catch (switchError: any) {
         // 4902 = chain not added to wallet yet
-        if (switchError.code === 4902) {
+        if (switchError.code === 4902 || switchError.data?.originalError?.code === 4902) {
           const chainCfg = SUPPORTED_CHAINS[targetChainId];
           if (chainCfg) {
             try {
@@ -213,6 +219,7 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({ children
                 ],
               });
               setChainId(targetChainId);
+              if (address) updateBalance(address, targetChainId);
               return true;
             } catch (addError) {
               console.error("Failed to add network to wallet:", addError);
@@ -236,6 +243,7 @@ export const Web3Provider: React.FC<{ children: React.ReactNode }> = ({ children
         isConnected: !!address,
         isConnecting,
         chainId,
+        networkName,
         balance,
         connectWallet,
         disconnectWallet,

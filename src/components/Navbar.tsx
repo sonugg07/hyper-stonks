@@ -7,6 +7,7 @@ import { Logo } from "./Logo";
 import { useWeb3 } from "@/lib/web3";
 import { shortenAddress } from "@/lib/utils";
 import { WalletModal } from "./WalletModal";
+import { SUPPORTED_CHAINS } from "@/lib/contracts";
 import {
   Wallet,
   Menu,
@@ -15,17 +16,26 @@ import {
   Check,
   LogOut,
   ChevronDown,
-  Sparkles,
   Shield,
   ClipboardList,
+  Globe,
 } from "lucide-react";
 
 export const Navbar: React.FC = () => {
   const pathname = usePathname();
-  const { address, isConnected, disconnectWallet, isDemoMode } = useWeb3();
+  const {
+    address,
+    isConnected,
+    disconnectWallet,
+    chainId,
+    networkName,
+    balance,
+    switchNetwork,
+  } = useWeb3();
   const [isWalletModalOpen, setIsWalletModalOpen] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isUserDropdownOpen, setIsUserDropdownOpen] = useState(false);
+  const [isNetworkDropdownOpen, setIsNetworkDropdownOpen] = useState(false);
   const [copied, setCopied] = useState(false);
   const [scrolled, setScrolled] = useState(false);
 
@@ -91,7 +101,7 @@ export const Navbar: React.FC = () => {
             })}
           </nav>
 
-          {/* Right Action: Wallet Connect & Admin link */}
+          {/* Right Action: Network Pill, Wallet Connect & Admin link */}
           <div className="hidden md:flex items-center gap-3">
             {/* Admin quick entry */}
             <Link
@@ -104,86 +114,130 @@ export const Navbar: React.FC = () => {
             </Link>
 
             {isConnected && address ? (
-              <div className="relative">
-                <button
-                  onClick={() => setIsUserDropdownOpen(!isUserDropdownOpen)}
-                  className="flex items-center gap-2.5 px-3.5 py-2 rounded-xl bg-surface-subtle border border-stonks-green/30 hover:border-stonks-green/60 text-white transition-all shadow-sm group"
-                >
-                  <div className="w-2.5 h-2.5 rounded-full bg-stonks-green animate-pulse" />
-                  <span className="text-xs font-mono font-bold text-stonks-green">
-                    {shortenAddress(address)}
-                  </span>
-                  <ChevronDown className="w-4 h-4 text-muted group-hover:text-white transition-transform" />
-                </button>
+              <div className="flex items-center gap-2">
+                {/* Network Indicator & Switcher */}
+                <div className="relative">
+                  <button
+                    type="button"
+                    onClick={() => setIsNetworkDropdownOpen(!isNetworkDropdownOpen)}
+                    className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-surface-subtle border border-surface-border hover:border-stonks-green/40 text-xs font-mono text-white transition-all cursor-pointer"
+                  >
+                    <span className="w-2 h-2 rounded-full bg-stonks-green" />
+                    <span>{networkName}</span>
+                    <ChevronDown className="w-3 h-3 text-muted" />
+                  </button>
 
-                {/* Dropdown Menu */}
-                {isUserDropdownOpen && (
-                  <>
-                    <div
-                      className="fixed inset-0 z-10"
-                      onClick={() => setIsUserDropdownOpen(false)}
-                    />
-                    <div className="absolute right-0 mt-2 w-56 bg-[#0B130E] border border-stonks-green/20 rounded-xl p-2 shadow-2xl z-20 space-y-1">
-                      {isDemoMode && (
-                        <div className="px-3 py-1.5 mb-1 bg-stonks-green/10 rounded-lg text-[10px] text-stonks-green font-semibold flex items-center gap-1">
-                          <Sparkles className="w-3 h-3" />
-                          Demo Testnet Wallet
+                  {isNetworkDropdownOpen && (
+                    <>
+                      <div
+                        className="fixed inset-0 z-10"
+                        onClick={() => setIsNetworkDropdownOpen(false)}
+                      />
+                      <div className="absolute right-0 mt-2 w-48 bg-[#0B130E] border border-stonks-green/20 rounded-xl p-1.5 shadow-2xl z-20 space-y-1">
+                        <div className="px-2.5 py-1 text-[10px] font-mono text-muted uppercase">
+                          Select EVM Network
                         </div>
-                      )}
-
-                      <div className="px-3 py-2 border-b border-surface-border">
-                        <div className="text-[10px] text-muted uppercase font-semibold">
-                          Connected as
-                        </div>
-                        <div className="font-mono text-xs text-white truncate font-medium">
-                          {address}
-                        </div>
+                        {Object.values(SUPPORTED_CHAINS).map((c) => (
+                          <button
+                            key={c.id}
+                            type="button"
+                            onClick={() => {
+                              switchNetwork(c.id);
+                              setIsNetworkDropdownOpen(false);
+                            }}
+                            className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs font-mono transition-colors text-left cursor-pointer ${
+                              chainId === c.id
+                                ? "bg-stonks-green/15 text-stonks-green font-bold"
+                                : "text-muted hover:text-white hover:bg-surface-subtle"
+                            }`}
+                          >
+                            <span>{c.name}</span>
+                            {chainId === c.id && <span className="text-[10px]">✓</span>}
+                          </button>
+                        ))}
                       </div>
+                    </>
+                  )}
+                </div>
 
-                      <button
-                        onClick={handleCopyAddress}
-                        className="w-full flex items-center gap-2 px-3 py-2 text-xs text-muted hover:text-white hover:bg-surface-subtle rounded-lg transition-colors text-left"
-                      >
-                        {copied ? (
-                          <>
-                            <Check className="w-4 h-4 text-stonks-green" />
-                            <span className="text-stonks-green font-medium">Copied Address!</span>
-                          </>
-                        ) : (
-                          <>
-                            <Copy className="w-4 h-4" />
-                            <span>Copy EVM Address</span>
-                          </>
-                        )}
-                      </button>
+                {/* User Address Dropdown */}
+                <div className="relative">
+                  <button
+                    onClick={() => setIsUserDropdownOpen(!isUserDropdownOpen)}
+                    className="flex items-center gap-2.5 px-3.5 py-2 rounded-xl bg-surface-subtle border border-stonks-green/30 hover:border-stonks-green/60 text-white transition-all shadow-sm group cursor-pointer"
+                  >
+                    <div className="w-2.5 h-2.5 rounded-full bg-stonks-green animate-pulse" />
+                    <span className="text-xs font-mono font-bold text-stonks-green">
+                      {shortenAddress(address)}
+                    </span>
+                    <ChevronDown className="w-4 h-4 text-muted group-hover:text-white transition-transform" />
+                  </button>
 
-                      <Link
-                        href="/waitlist"
+                  {/* Dropdown Menu */}
+                  {isUserDropdownOpen && (
+                    <>
+                      <div
+                        className="fixed inset-0 z-10"
                         onClick={() => setIsUserDropdownOpen(false)}
-                        className="w-full flex items-center gap-2 px-3 py-2 text-xs text-muted hover:text-white hover:bg-surface-subtle rounded-lg transition-colors text-left"
-                      >
-                        <ClipboardList className="w-4 h-4 text-stonks-green" />
-                        <span>Waitlist Entry</span>
-                      </Link>
+                      />
+                      <div className="absolute right-0 mt-2 w-56 bg-[#0B130E] border border-stonks-green/20 rounded-xl p-2 shadow-2xl z-20 space-y-1">
+                        <div className="px-3 py-2 border-b border-surface-border">
+                          <div className="text-[10px] text-muted uppercase font-semibold">
+                            Connected Wallet
+                          </div>
+                          <div className="font-mono text-xs text-white truncate font-medium">
+                            {address}
+                          </div>
+                          <div className="font-mono text-[11px] text-stonks-green mt-1">
+                            Balance: {balance}
+                          </div>
+                        </div>
 
-                      <button
-                        onClick={() => {
-                          disconnectWallet();
-                          setIsUserDropdownOpen(false);
-                        }}
-                        className="w-full flex items-center gap-2 px-3 py-2 text-xs text-stonks-red hover:bg-stonks-red/10 rounded-lg transition-colors text-left"
-                      >
-                        <LogOut className="w-4 h-4" />
-                        <span>Disconnect Wallet</span>
-                      </button>
-                    </div>
-                  </>
-                )}
+                        <button
+                          onClick={handleCopyAddress}
+                          className="w-full flex items-center gap-2 px-3 py-2 text-xs text-muted hover:text-white hover:bg-surface-subtle rounded-lg transition-colors text-left cursor-pointer"
+                        >
+                          {copied ? (
+                            <>
+                              <Check className="w-4 h-4 text-stonks-green" />
+                              <span className="text-stonks-green font-medium">Copied Address!</span>
+                            </>
+                          ) : (
+                            <>
+                              <Copy className="w-4 h-4" />
+                              <span>Copy EVM Address</span>
+                            </>
+                          )}
+                        </button>
+
+                        <Link
+                          href="/waitlist"
+                          onClick={() => setIsUserDropdownOpen(false)}
+                          className="w-full flex items-center gap-2 px-3 py-2 text-xs text-muted hover:text-white hover:bg-surface-subtle rounded-lg transition-colors text-left"
+                        >
+                          <ClipboardList className="w-4 h-4 text-stonks-green" />
+                          <span>Waitlist Entry</span>
+                        </Link>
+
+                        <button
+                          onClick={() => {
+                            disconnectWallet();
+                            setIsUserDropdownOpen(false);
+                          }}
+                          className="w-full flex items-center gap-2 px-3 py-2 text-xs text-stonks-red hover:bg-stonks-red/10 rounded-lg transition-colors text-left cursor-pointer"
+                        >
+                          <LogOut className="w-4 h-4" />
+                          <span>Disconnect Wallet</span>
+                        </button>
+                      </div>
+                    </>
+                  )}
+                </div>
               </div>
             ) : (
               <button
                 onClick={() => setIsWalletModalOpen(true)}
-                className="relative group px-5 py-2.5 rounded-xl font-bold text-xs uppercase tracking-wider text-black bg-stonks-green hover:bg-stonks-green-dim transition-all shadow-[0_0_20px_rgba(0,255,163,0.35)] hover:shadow-[0_0_30px_rgba(0,255,163,0.6)] flex items-center gap-2"
+                className="relative group px-5 py-2.5 rounded-xl font-bold text-xs uppercase tracking-wider text-black bg-stonks-green hover:bg-stonks-green-dim transition-all shadow-[0_0_20px_rgba(0,255,163,0.35)] hover:shadow-[0_0_30px_rgba(0,255,163,0.6)] flex items-center gap-2 cursor-pointer"
               >
                 <Wallet className="w-4 h-4" />
                 <span>Connect Wallet</span>
@@ -200,7 +254,7 @@ export const Navbar: React.FC = () => {
             )}
             <button
               onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-              className="p-2 rounded-xl text-muted hover:text-white bg-surface-subtle border border-surface-border"
+              className="p-2 rounded-xl text-muted hover:text-white bg-surface-subtle border border-surface-border cursor-pointer"
             >
               {isMobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
             </button>
@@ -247,10 +301,10 @@ export const Navbar: React.FC = () => {
               {isConnected && address ? (
                 <div className="space-y-3">
                   <div className="p-3 bg-surface-subtle rounded-xl border border-surface-border text-xs text-muted flex items-center justify-between">
-                    <span className="font-mono text-white">{shortenAddress(address)}</span>
+                    <span className="font-mono text-white">{shortenAddress(address)} ({networkName})</span>
                     <button
                       onClick={handleCopyAddress}
-                      className="text-stonks-green font-semibold hover:underline"
+                      className="text-stonks-green font-semibold hover:underline cursor-pointer"
                     >
                       {copied ? "Copied!" : "Copy"}
                     </button>
@@ -260,7 +314,7 @@ export const Navbar: React.FC = () => {
                       disconnectWallet();
                       setIsMobileMenuOpen(false);
                     }}
-                    className="w-full py-3 text-center text-sm font-bold text-stonks-red bg-stonks-red/10 border border-stonks-red/20 rounded-xl"
+                    className="w-full py-3 text-center text-sm font-bold text-stonks-red bg-stonks-red/10 border border-stonks-red/20 rounded-xl cursor-pointer"
                   >
                     Disconnect Wallet
                   </button>
@@ -271,7 +325,7 @@ export const Navbar: React.FC = () => {
                     setIsMobileMenuOpen(false);
                     setIsWalletModalOpen(true);
                   }}
-                  className="w-full py-3.5 rounded-xl font-bold text-sm uppercase tracking-wider text-black bg-stonks-green hover:bg-stonks-green-dim flex items-center justify-center gap-2 shadow-[0_0_20px_rgba(0,255,163,0.3)]"
+                  className="w-full py-3.5 rounded-xl font-bold text-sm uppercase tracking-wider text-black bg-stonks-green hover:bg-stonks-green-dim flex items-center justify-center gap-2 shadow-[0_0_20px_rgba(0,255,163,0.3)] cursor-pointer"
                 >
                   <Wallet className="w-4 h-4" />
                   <span>Connect EVM Wallet</span>

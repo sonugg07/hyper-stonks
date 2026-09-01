@@ -15,6 +15,7 @@ export default function AdminStakingPage() {
   const [rewardTokenSymbol, setRewardTokenSymbol] = useState("$STONKS");
   const [contractAddress, setContractAddress] = useState("0x99A87C6F67e0eD40360a0a86B91054E83b4Bf2F1");
   const [chain, setChain] = useState("Ethereum Mainnet");
+  const [chainId, setChainId] = useState(1);
   const [totalStaked, setTotalStaked] = useState(842.6);
 
   const [loading, setLoading] = useState(true);
@@ -35,6 +36,7 @@ export default function AdminStakingPage() {
         setRewardTokenSymbol(json.data.rewardTokenSymbol);
         setContractAddress(json.data.contractAddress);
         setChain(json.data.chain);
+        if (json.data.chainId) setChainId(json.data.chainId);
         setTotalStaked(json.data.totalStaked);
       }
     } catch (err) {
@@ -67,6 +69,7 @@ export default function AdminStakingPage() {
           rewardTokenSymbol,
           contractAddress,
           chain,
+          chainId,
         }),
       });
 
@@ -232,13 +235,31 @@ export default function AdminStakingPage() {
               <label className="text-muted font-bold uppercase">Network Chain</label>
               <select
                 value={chain}
-                onChange={(e) => setChain(e.target.value)}
+                onChange={(e) => {
+                  const selectedName = e.target.value;
+                  setChain(selectedName);
+                  const chainMapping: Record<string, number> = {
+                    "Hyperliquid EVM": 999,
+                    "Ethereum Mainnet": 1,
+                    "Base Mainnet": 8453,
+                    "Arbitrum One": 42161,
+                    "Polygon Mainnet": 137,
+                    "BNB Smart Chain": 56,
+                    "Sepolia Testnet": 11155111,
+                    "Hyperliquid Testnet": 998,
+                  };
+                  setChainId(chainMapping[selectedName] || 1);
+                }}
                 className="w-full bg-[#070D0A] border border-surface-border focus:border-stonks-cyan rounded-xl px-4 py-3 text-white outline-none"
               >
+                <option value="Hyperliquid EVM">Hyperliquid EVM (Chain ID: 999)</option>
                 <option value="Ethereum Mainnet">Ethereum Mainnet (Chain ID: 1)</option>
-                <option value="Arbitrum One">Arbitrum One (Chain ID: 42161)</option>
                 <option value="Base Mainnet">Base Mainnet (Chain ID: 8453)</option>
+                <option value="Arbitrum One">Arbitrum One (Chain ID: 42161)</option>
+                <option value="Polygon Mainnet">Polygon Mainnet (Chain ID: 137)</option>
+                <option value="BNB Smart Chain">BNB Smart Chain (Chain ID: 56)</option>
                 <option value="Sepolia Testnet">Sepolia Testnet (Chain ID: 11155111)</option>
+                <option value="Hyperliquid Testnet">Hyperliquid Testnet (Chain ID: 998)</option>
               </select>
             </div>
 

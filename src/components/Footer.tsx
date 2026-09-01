@@ -88,7 +88,7 @@ export const Footer: React.FC = () => {
               </div>
               <div className="flex items-center justify-between p-2.5 bg-surface-subtle/80 rounded-lg border border-surface-border">
                 <span className="text-muted">EVM Network</span>
-                <span className="text-stonks-cyan font-semibold">Ethereum Mainnet</span>
+                <span className="text-stonks-cyan font-semibold">Hyperliquid / Multi-Chain</span>
               </div>
               <div className="flex items-center justify-between p-2.5 bg-surface-subtle/80 rounded-lg border border-surface-border">
                 <span className="text-muted">Security Verification</span>

@@ -22,21 +22,13 @@ export const SUPPORTED_CHAINS: Record<number, ChainConfig> = {
     rpcUrls: ["https://eth.llamarpc.com", "https://rpc.ankr.com/eth", "https://cloudflare-eth.com"],
     blockExplorer: "https://etherscan.io",
   },
-  11155111: {
-    id: 11155111,
-    name: "Sepolia Testnet",
-    network: "sepolia",
-    nativeCurrency: { name: "Sepolia Ether", symbol: "ETH", decimals: 18 },
-    rpcUrls: ["https://rpc.sepolia.org", "https://rpc2.sepolia.org", "https://gateway.tenderly.co/public/sepolia"],
-    blockExplorer: "https://sepolia.etherscan.io",
-  },
-  42161: {
-    id: 42161,
-    name: "Arbitrum One",
-    network: "arbitrum",
-    nativeCurrency: { name: "Ether", symbol: "ETH", decimals: 18 },
-    rpcUrls: ["https://arb1.arbitrum.io/rpc", "https://rpc.ankr.com/arbitrum"],
-    blockExplorer: "https://arbiscan.io",
+  999: {
+    id: 999,
+    name: "Hyperliquid EVM",
+    network: "hyperliquid",
+    nativeCurrency: { name: "HYPE", symbol: "HYPE", decimals: 18 },
+    rpcUrls: ["https://rpc.hyperliquid.xyz/evm"],
+    blockExplorer: "https://hyperevmscan.io",
   },
   8453: {
     id: 8453,
@@ -45,6 +37,14 @@ export const SUPPORTED_CHAINS: Record<number, ChainConfig> = {
     nativeCurrency: { name: "Ether", symbol: "ETH", decimals: 18 },
     rpcUrls: ["https://mainnet.base.org", "https://base.llamarpc.com"],
     blockExplorer: "https://basescan.org",
+  },
+  42161: {
+    id: 42161,
+    name: "Arbitrum One",
+    network: "arbitrum",
+    nativeCurrency: { name: "Ether", symbol: "ETH", decimals: 18 },
+    rpcUrls: ["https://arb1.arbitrum.io/rpc", "https://rpc.ankr.com/arbitrum"],
+    blockExplorer: "https://arbiscan.io",
   },
   137: {
     id: 137,
@@ -61,6 +61,22 @@ export const SUPPORTED_CHAINS: Record<number, ChainConfig> = {
     nativeCurrency: { name: "BNB", symbol: "BNB", decimals: 18 },
     rpcUrls: ["https://bsc-dataseed.binance.org", "https://rpc.ankr.com/bsc"],
     blockExplorer: "https://bscscan.com",
+  },
+  11155111: {
+    id: 11155111,
+    name: "Sepolia Testnet",
+    network: "sepolia",
+    nativeCurrency: { name: "Sepolia Ether", symbol: "ETH", decimals: 18 },
+    rpcUrls: ["https://rpc.sepolia.org", "https://rpc2.sepolia.org", "https://gateway.tenderly.co/public/sepolia"],
+    blockExplorer: "https://sepolia.etherscan.io",
+  },
+  998: {
+    id: 998,
+    name: "Hyperliquid Testnet",
+    network: "hyperliquid-testnet",
+    nativeCurrency: { name: "HYPE", symbol: "HYPE", decimals: 18 },
+    rpcUrls: ["https://rpc.hyperliquid-testnet.xyz/evm"],
+    blockExplorer: "https://testnet.hypurrscan.io",
   },
 };
 
@@ -228,4 +244,14 @@ export function getExplorerAddressUrl(address: string, chainId: number = 1): str
  */
 export function getChainName(chainId: number): string {
   return SUPPORTED_CHAINS[chainId]?.name || `Chain ID ${chainId}`;
+}
+
+/**
+ * Resolves chain ID from chain name string
+ */
+export function getChainIdFromName(chainName: string): number {
+  const entry = Object.values(SUPPORTED_CHAINS).find(
+    (c) => c.name.toLowerCase() === chainName.toLowerCase() || c.network.toLowerCase() === chainName.toLowerCase()
+  );
+  return entry ? entry.id : 1;
 }
