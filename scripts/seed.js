@@ -47,8 +47,8 @@ async function main() {
       id: 'default',
       isActive: false, // OFF by default
       priceEth: 0.08,
-      maxSupply: 3333,
-      mintedCount: 1420,
+      maxSupply: 2222,
+      mintedCount: 0,
       maxPerWallet: 3,
       contractAddress: '0x38B76a6D8F1Eb856F52575C7E7799d1912808Ea7',
       chain: 'Ethereum Mainnet',

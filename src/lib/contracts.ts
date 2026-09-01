@@ -2,6 +2,8 @@
  * Web3 Smart Contract Configurations, ABIs, and Chain Explorer Helpers
  */
 
+export const MAX_NFT_SUPPLY = 2222;
+
 export interface ChainConfig {
   id: number;
   name: string;
@@ -17,7 +19,7 @@ export const SUPPORTED_CHAINS: Record<number, ChainConfig> = {
     name: "Ethereum Mainnet",
     network: "mainnet",
     nativeCurrency: { name: "Ether", symbol: "ETH", decimals: 18 },
-    rpcUrls: ["https://eth.llamarpc.com", "https://rpc.ankr.com/eth"],
+    rpcUrls: ["https://eth.llamarpc.com", "https://rpc.ankr.com/eth", "https://cloudflare-eth.com"],
     blockExplorer: "https://etherscan.io",
   },
   11155111: {
@@ -25,7 +27,7 @@ export const SUPPORTED_CHAINS: Record<number, ChainConfig> = {
     name: "Sepolia Testnet",
     network: "sepolia",
     nativeCurrency: { name: "Sepolia Ether", symbol: "ETH", decimals: 18 },
-    rpcUrls: ["https://rpc.sepolia.org", "https://rpc2.sepolia.org"],
+    rpcUrls: ["https://rpc.sepolia.org", "https://rpc2.sepolia.org", "https://gateway.tenderly.co/public/sepolia"],
     blockExplorer: "https://sepolia.etherscan.io",
   },
   42161: {
@@ -33,7 +35,7 @@ export const SUPPORTED_CHAINS: Record<number, ChainConfig> = {
     name: "Arbitrum One",
     network: "arbitrum",
     nativeCurrency: { name: "Ether", symbol: "ETH", decimals: 18 },
-    rpcUrls: ["https://arb1.arbitrum.io/rpc"],
+    rpcUrls: ["https://arb1.arbitrum.io/rpc", "https://rpc.ankr.com/arbitrum"],
     blockExplorer: "https://arbiscan.io",
   },
   8453: {
@@ -41,7 +43,7 @@ export const SUPPORTED_CHAINS: Record<number, ChainConfig> = {
     name: "Base Mainnet",
     network: "base",
     nativeCurrency: { name: "Ether", symbol: "ETH", decimals: 18 },
-    rpcUrls: ["https://mainnet.base.org"],
+    rpcUrls: ["https://mainnet.base.org", "https://base.llamarpc.com"],
     blockExplorer: "https://basescan.org",
   },
   137: {
@@ -49,7 +51,7 @@ export const SUPPORTED_CHAINS: Record<number, ChainConfig> = {
     name: "Polygon Mainnet",
     network: "polygon",
     nativeCurrency: { name: "MATIC", symbol: "MATIC", decimals: 18 },
-    rpcUrls: ["https://polygon-rpc.com"],
+    rpcUrls: ["https://polygon-rpc.com", "https://rpc.ankr.com/polygon"],
     blockExplorer: "https://polygonscan.com",
   },
   56: {
@@ -57,7 +59,7 @@ export const SUPPORTED_CHAINS: Record<number, ChainConfig> = {
     name: "BNB Smart Chain",
     network: "bsc",
     nativeCurrency: { name: "BNB", symbol: "BNB", decimals: 18 },
-    rpcUrls: ["https://bsc-dataseed.binance.org"],
+    rpcUrls: ["https://bsc-dataseed.binance.org", "https://rpc.ankr.com/bsc"],
     blockExplorer: "https://bscscan.com",
   },
 };
@@ -114,18 +116,95 @@ export const ERC721_MINT_ABI = [
 /**
  * Function Selector Hashes (4 bytes keccak256):
  * mint(uint256): 0xa0712d68
- * publicMint(uint256): 0x40c10f19 (or standard custom)
+ * publicMint(uint256): 0x40c10f19
  * mintTo(address,uint256): 0xa43ab986
+ * totalSupply(): 0x18160ddd
  */
 export function encodeMintFunctionCall(quantity: number, recipient?: string): string {
   const qtyHex = BigInt(quantity).toString(16).padStart(64, "0");
   if (recipient && recipient.startsWith("0x")) {
     const cleanAddr = recipient.replace(/^0x/, "").toLowerCase().padStart(64, "0");
-    // mintTo(address,uint256): 0xa43ab986
     return `0xa43ab986${cleanAddr}${qtyHex}`;
   }
-  // mint(uint256): 0xa0712d68
   return `0xa0712d68${qtyHex}`;
+}
+
+/**
+ * Reads live on-chain totalSupply() from deployed ERC-721 contract via RPC/Provider.
+ */
+export async function fetchOnChainTotalSupply(
+  contractAddress: string,
+  chainId: number = 1,
+  injectedProvider?: any
+): Promise<{ totalSupply: number | null; isAvailable: boolean; error?: string }> {
+  if (!contractAddress || !contractAddress.startsWith("0x") || contractAddress.length !== 42) {
+    return { totalSupply: null, isAvailable: false, error: "Contract address is not configured." };
+  }
+
+  // 1. Try injected provider (e.g. window.ethereum) if provided
+  if (injectedProvider && typeof injectedProvider.request === "function") {
+    try {
+      const resultHex = await injectedProvider.request({
+        method: "eth_call",
+        params: [
+          {
+            to: contractAddress,
+            data: "0x18160ddd", // totalSupply()
+          },
+          "latest",
+        ],
+      });
+
+      if (resultHex && resultHex !== "0x" && resultHex.length >= 66) {
+        const supply = Number(BigInt(resultHex));
+        if (!isNaN(supply) && supply >= 0) {
+          return { totalSupply: Math.min(MAX_NFT_SUPPLY, supply), isAvailable: true };
+        }
+      }
+    } catch {
+      // fallback to RPC
+    }
+  }
+
+  // 2. Query public JSON-RPC nodes
+  const chain = SUPPORTED_CHAINS[chainId] || SUPPORTED_CHAINS[1];
+  for (const rpcUrl of chain.rpcUrls) {
+    try {
+      const response = await fetch(rpcUrl, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          jsonrpc: "2.0",
+          id: 1,
+          method: "eth_call",
+          params: [
+            {
+              to: contractAddress,
+              data: "0x18160ddd", // totalSupply()
+            },
+            "latest",
+          ],
+        }),
+      });
+
+      if (!response.ok) continue;
+      const json = await response.json();
+      if (json.result && json.result !== "0x" && json.result.length >= 66) {
+        const supply = Number(BigInt(json.result));
+        if (!isNaN(supply) && supply >= 0) {
+          return { totalSupply: Math.min(MAX_NFT_SUPPLY, supply), isAvailable: true };
+        }
+      }
+    } catch {
+      // try next RPC
+    }
+  }
+
+  return {
+    totalSupply: null,
+    isAvailable: false,
+    error: `On-chain totalSupply() unavailable for ${contractAddress.slice(0, 6)}...${contractAddress.slice(-4)} on ${chain.name}.`,
+  };
 }
 
 /**

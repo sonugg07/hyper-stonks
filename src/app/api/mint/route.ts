@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { isValidEvmAddress } from "@/lib/utils";
+import { MAX_NFT_SUPPLY, fetchOnChainTotalSupply } from "@/lib/contracts";
 
 export const dynamic = "force-dynamic";
 
@@ -16,8 +17,8 @@ export async function GET() {
           id: "default",
           isActive: false, // OFF by default
           priceEth: 0.08,
-          maxSupply: 3333,
-          mintedCount: 1420,
+          maxSupply: MAX_NFT_SUPPLY,
+          mintedCount: 0,
           maxPerWallet: 3,
           contractAddress: "0x38B76a6D8F1Eb856F52575C7E7799d1912808Ea7",
           chain: "Ethereum Mainnet",
@@ -26,7 +27,41 @@ export async function GET() {
       });
     }
 
-    return NextResponse.json({ success: true, data: settings });
+    // Attempt live on-chain read from smart contract
+    let onChainSupply: number | null = null;
+    let onChainAvailable = false;
+    let onChainError: string | undefined;
+
+    if (settings.contractAddress && settings.contractAddress.startsWith("0x")) {
+      try {
+        const onChainRes = await fetchOnChainTotalSupply(settings.contractAddress, settings.chainId);
+        onChainSupply = onChainRes.totalSupply;
+        onChainAvailable = onChainRes.isAvailable;
+        onChainError = onChainRes.error;
+
+        // If on-chain count is found, sync database if different
+        if (onChainSupply !== null && onChainSupply !== settings.mintedCount) {
+          await prisma.mintSettings.update({
+            where: { id: "default" },
+            data: { mintedCount: onChainSupply },
+          }).catch(() => {});
+          settings.mintedCount = onChainSupply;
+        }
+      } catch (err: any) {
+        onChainError = err?.message || "Failed to query on-chain supply.";
+      }
+    }
+
+    return NextResponse.json({
+      success: true,
+      data: {
+        ...settings,
+        maxSupply: MAX_NFT_SUPPLY,
+        onChainSupply,
+        onChainAvailable,
+        onChainError,
+      },
+    });
   } catch (error) {
     console.error("Error fetching mint settings:", error);
     return NextResponse.json(
@@ -35,12 +70,14 @@ export async function GET() {
         data: {
           isActive: false,
           priceEth: 0.08,
-          maxSupply: 3333,
-          mintedCount: 1420,
+          maxSupply: MAX_NFT_SUPPLY,
+          mintedCount: 0,
           maxPerWallet: 3,
           contractAddress: "0x38B76a6D8F1Eb856F52575C7E7799d1912808Ea7",
           chain: "Ethereum Mainnet",
           chainId: 1,
+          onChainSupply: null,
+          onChainAvailable: false,
         },
       },
       { status: 200 }
@@ -83,10 +120,11 @@ export async function POST(req: NextRequest) {
     }
 
     const mintQty = Math.max(1, Math.min(settings.maxPerWallet, Number(quantity) || 1));
+    const effectiveMaxSupply = MAX_NFT_SUPPLY;
 
-    if (settings.mintedCount + mintQty > settings.maxSupply) {
+    if (settings.mintedCount + mintQty > effectiveMaxSupply) {
       return NextResponse.json(
-        { success: false, error: "Requested quantity exceeds available supply." },
+        { success: false, error: "Requested quantity exceeds available 2,222 supply." },
         { status: 400 }
       );
     }
@@ -94,7 +132,10 @@ export async function POST(req: NextRequest) {
     // Increment on-chain verified minted count in DB
     const updated = await prisma.mintSettings.update({
       where: { id: "default" },
-      data: { mintedCount: { increment: mintQty } },
+      data: {
+        mintedCount: { increment: mintQty },
+        maxSupply: MAX_NFT_SUPPLY,
+      },
     });
 
     // Record Activity Log
@@ -118,7 +159,7 @@ export async function POST(req: NextRequest) {
         message: `Successfully minted ${mintQty} Hype Stonks Genesis NFT${mintQty > 1 ? "s" : ""}!`,
         quantity: mintQty,
         totalMinted: updated.mintedCount,
-        maxSupply: updated.maxSupply,
+        maxSupply: MAX_NFT_SUPPLY,
         priceEth: settings.priceEth * mintQty,
         txHash: txHash || "0xDEMO_TRANSACTION_HASH",
         isDemoTransaction: Boolean(isDemoMode),

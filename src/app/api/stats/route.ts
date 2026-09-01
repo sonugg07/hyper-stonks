@@ -1,17 +1,18 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { MAX_NFT_SUPPLY } from "@/lib/contracts";
 
 export const dynamic = "force-dynamic";
 
 export async function GET() {
   try {
     const [totalUsers, activeQuests, pointsSum, mintSettings] = await Promise.all([
-      prisma.user.count(),
-      prisma.quest.count({ where: { isActive: true } }),
+      prisma.user.count().catch(() => 0),
+      prisma.quest.count({ where: { isActive: true } }).catch(() => 6),
       prisma.pointsTransaction.aggregate({
         _sum: { amount: true },
-      }),
-      prisma.mintSettings.findUnique({ where: { id: "default" } }),
+      }).catch(() => ({ _sum: { amount: 0 } })),
+      prisma.mintSettings.findUnique({ where: { id: "default" } }).catch(() => null),
     ]);
 
     const baseUsers = 14820;
@@ -24,8 +25,8 @@ export async function GET() {
         activeQuests: activeQuests || 6,
         totalPoints: (pointsSum._sum.amount || 0) + basePoints,
         rewardsDistributed: "$150,000+",
-        mintedNfts: mintSettings?.mintedCount || 1420,
-        totalNfts: mintSettings?.maxSupply || 3333,
+        mintedNfts: mintSettings?.mintedCount ?? 0,
+        totalNfts: mintSettings?.maxSupply || MAX_NFT_SUPPLY,
       },
     });
   } catch (error) {
@@ -38,8 +39,8 @@ export async function GET() {
           activeQuests: 6,
           totalPoints: 2850000,
           rewardsDistributed: "$150,000+",
-          mintedNfts: 1420,
-          totalNfts: 3333,
+          mintedNfts: 0,
+          totalNfts: MAX_NFT_SUPPLY,
         },
       },
       { status: 200 }

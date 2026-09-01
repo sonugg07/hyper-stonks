@@ -9,8 +9,8 @@ import { formatNumber } from "@/lib/utils";
 export default function AdminMintPage() {
   const [isActive, setIsActive] = useState(false);
   const [priceEth, setPriceEth] = useState(0.08);
-  const [maxSupply, setMaxSupply] = useState(3333);
-  const [mintedCount, setMintedCount] = useState(1420);
+  const [maxSupply, setMaxSupply] = useState(2222);
+  const [mintedCount, setMintedCount] = useState(0);
   const [maxPerWallet, setMaxPerWallet] = useState(3);
   const [contractAddress, setContractAddress] = useState("0x38B76a6D8F1Eb856F52575C7E7799d1912808Ea7");
   const [chain, setChain] = useState("Ethereum Mainnet");

@@ -1,12 +1,11 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { PublicLayout } from "@/components/PublicLayout";
 import { useWeb3 } from "@/lib/web3";
 import { WalletModal } from "@/components/WalletModal";
 import {
   Coins,
-  ShieldAlert,
   Clock,
   Sparkles,
   CheckCircle2,
@@ -16,20 +15,19 @@ import {
   Wallet,
   ExternalLink,
   ShieldCheck,
-  Zap,
   Loader2,
   Copy,
   Check,
-  AlertTriangle,
   RefreshCw,
 } from "lucide-react";
 import { formatNumber, shortenAddress } from "@/lib/utils";
 import {
+  MAX_NFT_SUPPLY,
   SUPPORTED_CHAINS,
   getExplorerTxUrl,
   getExplorerAddressUrl,
-  getChainName,
   encodeMintFunctionCall,
+  fetchOnChainTotalSupply,
 } from "@/lib/contracts";
 
 interface MintData {
@@ -46,12 +44,18 @@ interface MintData {
 type MintStep = "IDLE" | "SWITCHING_NETWORK" | "AWAITING_WALLET_SIGNATURE" | "CONFIRMING_ON_CHAIN" | "SUCCESS" | "ERROR";
 
 export default function MintPage() {
-  const { address, isConnected, chainId, isDemoMode, providerName, switchNetwork } = useWeb3();
+  const { address, isConnected, chainId, providerName, switchNetwork } = useWeb3();
   const [isWalletModalOpen, setIsWalletModalOpen] = useState(false);
 
   const [mintConfig, setMintConfig] = useState<MintData | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [quantity, setQuantity] = useState<number>(1);
+
+  // Live On-Chain Supply State
+  const [liveSupply, setLiveSupply] = useState<number | null>(null);
+  const [isSupplyLoading, setIsSupplyLoading] = useState<boolean>(true);
+  const [supplyError, setSupplyError] = useState<string | null>(null);
+  const [isRefreshingSupply, setIsRefreshingSupply] = useState<boolean>(false);
 
   // Mint Lifecycle State
   const [mintStep, setMintStep] = useState<MintStep>("IDLE");
@@ -61,23 +65,64 @@ export default function MintPage() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
 
-  const fetchMintConfig = async () => {
-    try {
-      const res = await fetch("/api/mint");
-      const json = await res.json();
-      if (json.success && json.data) {
-        setMintConfig(json.data);
+  /**
+   * Reads real on-chain supply from contract + API
+   */
+  const fetchLiveSupply = useCallback(
+    async (contractAddr?: string, cId?: number, showSpinner: boolean = false) => {
+      if (showSpinner) setIsRefreshingSupply(true);
+      setSupplyError(null);
+
+      try {
+        // 1. Fetch server state
+        const res = await fetch("/api/mint", { cache: "no-store" });
+        const json = await res.json();
+
+        let targetContract = contractAddr;
+        let targetChainId = cId;
+
+        if (json.success && json.data) {
+          setMintConfig(json.data);
+          targetContract = targetContract || json.data.contractAddress;
+          targetChainId = targetChainId || json.data.chainId;
+
+          if (json.data.onChainSupply !== null && json.data.onChainSupply !== undefined) {
+            setLiveSupply(json.data.onChainSupply);
+          } else {
+            setLiveSupply(json.data.mintedCount ?? 0);
+          }
+        }
+
+        // 2. Direct client-side on-chain RPC query for real-time verification
+        if (targetContract && targetContract.startsWith("0x")) {
+          const ethereum = typeof window !== "undefined" ? (window as any).ethereum : null;
+          const onChainResult = await fetchOnChainTotalSupply(targetContract, targetChainId || 1, ethereum);
+
+          if (onChainResult.isAvailable && onChainResult.totalSupply !== null) {
+            setLiveSupply(onChainResult.totalSupply);
+            setSupplyError(null);
+          } else if (onChainResult.error) {
+            // Keep the server-synced supply but note RPC status
+            if (json?.data?.mintedCount === undefined) {
+              setSupplyError(onChainResult.error);
+            }
+          }
+        }
+      } catch (err: any) {
+        console.error("Failed to query live on-chain supply:", err);
+        setSupplyError("Failed to fetch on-chain supply. Click refresh to retry.");
+      } finally {
+        setLoading(false);
+        setIsSupplyLoading(false);
+        if (showSpinner) setIsRefreshingSupply(false);
       }
-    } catch (err) {
-      console.error("Failed to load mint config:", err);
-    } finally {
-      setLoading(false);
-    }
-  };
+    },
+    []
+  );
 
   useEffect(() => {
-    fetchMintConfig();
-  }, []);
+    fetchLiveSupply();
+  }, [fetchLiveSupply]);
 
   const triggerConfetti = async () => {
     try {
@@ -137,7 +182,9 @@ export default function MintPage() {
         setMintStep("SWITCHING_NETWORK");
         const switched = await switchNetwork(targetChainId);
         if (!switched) {
-          setErrorMessage(`Network switch cancelled: Please switch your wallet to ${mintConfig.chain} (Chain ID: ${targetChainId}) to continue minting.`);
+          setErrorMessage(
+            `Network switch cancelled: Please switch your wallet to ${mintConfig.chain} (Chain ID: ${targetChainId}) to continue minting.`
+          );
           setMintStep("ERROR");
           return;
         }
@@ -226,11 +273,13 @@ export default function MintPage() {
         console.warn("Backend receipt sync notice:", confirmJson.error);
       }
 
-      // 6. Complete Verified Mint Success
+      // 6. Complete Verified Mint Success & Real-Time On-Chain Supply Refresh
       setConfirmedTxHash(txHash);
       setConfirmedBlock(blockNum);
       setMintStep("SUCCESS");
-      setMintConfig((prev) => (prev ? { ...prev, mintedCount: prev.mintedCount + quantity } : null));
+
+      // Immediately refresh real on-chain supply counter
+      await fetchLiveSupply(targetContract, targetChainId);
       triggerConfetti();
     } catch (err: any) {
       console.error("Mint transaction error:", err);
@@ -250,7 +299,9 @@ export default function MintPage() {
         err?.message?.includes("exceeds balance") ||
         err?.data?.message?.includes("insufficient funds")
       ) {
-        setErrorMessage(`Insufficient funds: Your wallet does not have enough ETH for ${(mintConfig.priceEth * quantity).toFixed(3)} ETH + gas fee.`);
+        setErrorMessage(
+          `Insufficient funds: Your wallet does not have enough ETH for ${(mintConfig.priceEth * quantity).toFixed(3)} ETH + gas fee.`
+        );
       } else if (err?.message?.includes("nonce")) {
         setErrorMessage("Nonce issue: Please reset your wallet transaction activity in MetaMask settings.");
       } else {
@@ -259,10 +310,10 @@ export default function MintPage() {
     }
   };
 
-  const remaining = mintConfig ? Math.max(0, mintConfig.maxSupply - mintConfig.mintedCount) : 0;
-  const progressPercent = mintConfig
-    ? Math.min(100, Math.round((mintConfig.mintedCount / mintConfig.maxSupply) * 100))
-    : 0;
+  const totalCap = MAX_NFT_SUPPLY; // 2,222 Total Supply
+  const currentMinted = liveSupply !== null ? liveSupply : mintConfig?.mintedCount ?? 0;
+  const remaining = Math.max(0, totalCap - currentMinted);
+  const progressPercent = Math.min(100, Math.max(0, (currentMinted / totalCap) * 100));
 
   const currentChainCfg = SUPPORTED_CHAINS[mintConfig?.chainId || 1] || SUPPORTED_CHAINS[1];
 
@@ -280,7 +331,7 @@ export default function MintPage() {
             HYPE STONKS GEN-1 MINT
           </h1>
           <p className="text-sm text-muted max-w-lg mx-auto">
-            3,333 Genesis NFT passes unlocking staking multipliers, DAO governance, and future airdrop tiers.
+            {formatNumber(MAX_NFT_SUPPLY)} Genesis NFT passes unlocking staking multipliers, DAO governance, and future airdrop tiers.
           </p>
         </div>
 
@@ -288,7 +339,7 @@ export default function MintPage() {
         {loading ? (
           <div className="p-12 rounded-3xl bg-[#0B130E] border border-surface-border text-center space-y-4">
             <div className="w-8 h-8 border-2 border-stonks-green border-t-transparent rounded-full animate-spin mx-auto" />
-            <p className="text-xs font-mono text-muted">Checking protocol mint contract status...</p>
+            <p className="text-xs font-mono text-muted">Connecting to on-chain smart contract...</p>
           </div>
         ) : !mintConfig?.isActive ? (
           /* MINT IS CURRENTLY CLOSED */
@@ -339,7 +390,7 @@ export default function MintPage() {
                 </div>
                 <div className="mt-6 z-10">
                   <div className="text-xs font-mono text-stonks-green font-bold uppercase tracking-widest">
-                    GENESIS PASS #0001 - #3333
+                    GENESIS PASS #0001 - #{formatNumber(MAX_NFT_SUPPLY)}
                   </div>
                   <div className="text-lg font-black text-white mt-1">Hype Stonks Bull Pass</div>
                 </div>
@@ -389,23 +440,58 @@ export default function MintPage() {
                   </p>
                 </div>
 
-                {/* Supply Progress Bar */}
+                {/* REAL-TIME ON-CHAIN SUPPLY PROGRESS BAR */}
                 <div className="space-y-2 p-4 rounded-2xl bg-surface-subtle/80 border border-surface-border">
                   <div className="flex items-center justify-between text-xs font-mono">
-                    <span className="text-muted">Supply Minted</span>
-                    <span className="text-stonks-green font-bold">
-                      {formatNumber(mintConfig.mintedCount)} / {formatNumber(mintConfig.maxSupply)}
+                    <span className="text-muted flex items-center gap-1.5">
+                      <span>Supply Minted</span>
+                      <button
+                        type="button"
+                        onClick={() => fetchLiveSupply(mintConfig.contractAddress, mintConfig.chainId, true)}
+                        disabled={isRefreshingSupply}
+                        className="text-muted hover:text-stonks-green transition-colors cursor-pointer"
+                        title="Refresh live on-chain supply"
+                      >
+                        <RefreshCw className={`w-3 h-3 ${isRefreshingSupply ? "animate-spin text-stonks-green" : ""}`} />
+                      </button>
                     </span>
+
+                    {isSupplyLoading ? (
+                      <span className="text-muted flex items-center gap-1">
+                        <Loader2 className="w-3 h-3 animate-spin text-stonks-green" />
+                        <span>Loading supply...</span>
+                      </span>
+                    ) : supplyError && liveSupply === null ? (
+                      <span className="text-amber-400 font-bold text-[11px]">
+                        Supply unavailable
+                      </span>
+                    ) : (
+                      <span className="text-stonks-green font-bold">
+                        {formatNumber(currentMinted)} / {formatNumber(totalCap)}
+                      </span>
+                    )}
                   </div>
+
                   <div className="w-full h-2.5 bg-[#070D0A] rounded-full overflow-hidden border border-surface-border">
                     <div
                       className="h-full bg-gradient-to-r from-stonks-green to-stonks-cyan rounded-full transition-all duration-500"
                       style={{ width: `${progressPercent}%` }}
                     />
                   </div>
+
                   <div className="flex items-center justify-between text-[10px] font-mono text-muted">
-                    <span>{remaining} Remaining</span>
-                    <span>{progressPercent}% Complete</span>
+                    <span>
+                      {isSupplyLoading
+                        ? "Syncing on-chain data..."
+                        : supplyError && liveSupply === null
+                        ? supplyError
+                        : `${formatNumber(remaining)} Remaining`}
+                    </span>
+                    <span>
+                      {isSupplyLoading
+                        ? "..."
+                        : `${progressPercent.toFixed(1)}% Complete`}
+                    </span>
                   </div>
                 </div>
 
@@ -554,7 +640,11 @@ export default function MintPage() {
                 <button
                   type="button"
                   onClick={handleMint}
-                  disabled={mintStep === "AWAITING_WALLET_SIGNATURE" || mintStep === "CONFIRMING_ON_CHAIN" || mintStep === "SWITCHING_NETWORK"}
+                  disabled={
+                    mintStep === "AWAITING_WALLET_SIGNATURE" ||
+                    mintStep === "CONFIRMING_ON_CHAIN" ||
+                    mintStep === "SWITCHING_NETWORK"
+                  }
                   className="w-full py-4 rounded-2xl font-black text-sm uppercase tracking-wider text-black bg-stonks-green hover:bg-stonks-green-dim transition-all shadow-neon-green flex items-center justify-center gap-2 disabled:opacity-50 cursor-pointer"
                 >
                   {mintStep === "SWITCHING_NETWORK" ? (

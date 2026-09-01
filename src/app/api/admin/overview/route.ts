@@ -58,7 +58,7 @@ export async function GET(req: NextRequest) {
         totalTasks: totalTasks || 7,
         mintStatus: mintSettings?.isActive || false,
         stakingStatus: stakingSettings?.isActive || false,
-        mintSettings: mintSettings || { priceEth: 0.08, maxSupply: 3333, maxPerWallet: 3 },
+        mintSettings: mintSettings || { priceEth: 0.08, maxSupply: 2222, maxPerWallet: 3 },
         stakingSettings: stakingSettings || { apyPercent: 42.5 },
         recentSubmissions: (recentSubmissions || []).map((s: any) => ({
           id: s.id,
