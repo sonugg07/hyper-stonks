@@ -118,55 +118,9 @@ export default function MintPage() {
     setConfirmedTxHash(null);
     setConfirmedBlock(null);
 
-    // ==========================================
-    // DEMO MODE (Completely isolated preview)
-    // ==========================================
-    if (isDemoMode) {
-      setMintStep("AWAITING_WALLET_SIGNATURE");
-      try {
-        await new Promise((resolve) => setTimeout(resolve, 1200));
-        setMintStep("CONFIRMING_ON_CHAIN");
-        const simHash = `0x${Array.from({ length: 64 }, () => Math.floor(Math.random() * 16).toString(16)).join("")}`;
-        setPendingTxHash(simHash);
-
-        await new Promise((resolve) => setTimeout(resolve, 1800));
-
-        // Register demo mint with server
-        const res = await fetch("/api/mint", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            walletAddress: address,
-            quantity,
-            txHash: simHash,
-            isDemoMode: true,
-            chainId: mintConfig.chainId,
-          }),
-        });
-
-        const json = await res.json();
-        if (json.success) {
-          setConfirmedTxHash(simHash);
-          setConfirmedBlock("19,420,888");
-          setMintStep("SUCCESS");
-          setMintConfig((prev) => (prev ? { ...prev, mintedCount: prev.mintedCount + quantity } : null));
-          triggerConfetti();
-        } else {
-          setErrorMessage(json.error || "Demo mint failed.");
-          setMintStep("ERROR");
-        }
-      } catch (err: any) {
-        setErrorMessage(err.message || "Demo transaction failed.");
-        setMintStep("ERROR");
-      }
-      return;
-    }
-
-    // ==========================================
-    // REAL EVM WALLET MINT TRANSACTION
-    // ==========================================
+    // Check for EVM Web3 provider
     if (typeof window === "undefined" || !(window as any).ethereum) {
-      setErrorMessage("No Web3 EVM wallet detected. Please install MetaMask, Coinbase Wallet, or Rabby.");
+      setErrorMessage("No Web3 EVM wallet detected. Please connect MetaMask or Coinbase Wallet.");
       setMintStep("ERROR");
       return;
     }
@@ -193,11 +147,10 @@ export default function MintPage() {
       setMintStep("AWAITING_WALLET_SIGNATURE");
 
       const totalPriceEth = mintConfig.priceEth * quantity;
-      // Convert ETH to Wei (BigInt)
       const weiAmount = BigInt(Math.round(totalPriceEth * 1e18));
       const valueHex = `0x${weiAmount.toString(16)}`;
 
-      // Encode standard ERC-721 mint function calldata: mint(uint256 quantity)
+      // Encode standard ERC-721 mint calldata: mint(uint256 quantity)
       const calldata = encodeMintFunctionCall(quantity, address);
 
       // Contract target
@@ -499,22 +452,13 @@ export default function MintPage() {
                 </div>
               </div>
 
-              {/* Mode indicator banner */}
-              {isDemoMode ? (
-                <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/30 text-[11px] text-amber-300 flex items-start gap-2">
-                  <Sparkles className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
-                  <span>
-                    <strong>Instant Demo Mode Active:</strong> Simulates EVM transaction execution without opening a browser wallet. Connect with MetaMask/Coinbase to execute real on-chain mints.
-                  </span>
-                </div>
-              ) : (
-                <div className="p-3 rounded-xl bg-stonks-green/10 border border-stonks-green/30 text-[11px] text-stonks-green flex items-start gap-2">
-                  <ShieldCheck className="w-4 h-4 shrink-0 mt-0.5" />
-                  <span>
-                    <strong>Real Web3 Mode:</strong> Clicking Mint will open your {providerName || "connected wallet"} confirmation popup for explicit signature and transaction broadcast.
-                  </span>
-                </div>
-              )}
+              {/* Web3 Security Banner */}
+              <div className="p-3.5 rounded-xl bg-stonks-green/10 border border-stonks-green/30 text-[11px] text-stonks-green flex items-start gap-2">
+                <ShieldCheck className="w-4 h-4 shrink-0 mt-0.5" />
+                <span>
+                  <strong>Web3 Verified:</strong> Clicking Mint will open your {providerName || "connected EVM wallet"} confirmation popup for explicit signature and on-chain transaction broadcast.
+                </span>
+              </div>
 
               {/* ERROR BANNER */}
               {errorMessage && (

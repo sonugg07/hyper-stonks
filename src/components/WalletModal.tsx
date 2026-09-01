@@ -2,7 +2,7 @@
 
 import React from "react";
 import { useWeb3 } from "@/lib/web3";
-import { X, ShieldCheck, Zap, Sparkles, ExternalLink } from "lucide-react";
+import { X, ShieldCheck, Wallet } from "lucide-react";
 
 interface WalletModalProps {
   isOpen: boolean;
@@ -14,9 +14,13 @@ export const WalletModal: React.FC<WalletModalProps> = ({ isOpen, onClose }) => 
 
   if (!isOpen) return null;
 
-  const handleSelect = async (walletType: "metamask" | "coinbase" | "injected" | "demo") => {
-    await connectWallet(walletType);
-    onClose();
+  const handleSelect = async (walletType: "metamask" | "coinbase" | "injected") => {
+    try {
+      await connectWallet(walletType);
+      onClose();
+    } catch (err) {
+      console.error("Wallet connection failed:", err);
+    }
   };
 
   return (
@@ -39,14 +43,14 @@ export const WalletModal: React.FC<WalletModalProps> = ({ isOpen, onClose }) => 
           </div>
           <button
             onClick={onClose}
-            className="p-1 rounded-lg text-muted hover:text-white hover:bg-surface-subtle transition-colors"
+            className="p-1 rounded-lg text-muted hover:text-white hover:bg-surface-subtle transition-colors cursor-pointer"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
         <p className="text-xs text-muted mt-3 mb-5 leading-relaxed">
-          Connect your Web3 wallet to sign into Hype Stonks, complete quests, earn reward points, and access token staking.
+          Connect your Web3 wallet to sign into Hype Stonks, complete waitlist tasks, and mint your Genesis Access Pass.
         </p>
 
         {/* Options */}
@@ -55,7 +59,7 @@ export const WalletModal: React.FC<WalletModalProps> = ({ isOpen, onClose }) => 
           <button
             onClick={() => handleSelect("metamask")}
             disabled={isConnecting}
-            className="w-full flex items-center justify-between p-3.5 rounded-xl bg-surface-subtle/80 hover:bg-surface-border/80 border border-surface-border hover:border-stonks-green/40 transition-all group text-left"
+            className="w-full flex items-center justify-between p-3.5 rounded-xl bg-surface-subtle/80 hover:bg-surface-border/80 border border-surface-border hover:border-stonks-green/40 transition-all group text-left cursor-pointer disabled:opacity-50"
           >
             <div className="flex items-center gap-3">
               <div className="w-9 h-9 rounded-lg bg-orange-500/10 border border-orange-500/30 flex items-center justify-center">
@@ -77,7 +81,7 @@ export const WalletModal: React.FC<WalletModalProps> = ({ isOpen, onClose }) => 
           <button
             onClick={() => handleSelect("coinbase")}
             disabled={isConnecting}
-            className="w-full flex items-center justify-between p-3.5 rounded-xl bg-surface-subtle/80 hover:bg-surface-border/80 border border-surface-border hover:border-stonks-cyan/40 transition-all group text-left"
+            className="w-full flex items-center justify-between p-3.5 rounded-xl bg-surface-subtle/80 hover:bg-surface-border/80 border border-surface-border hover:border-stonks-cyan/40 transition-all group text-left cursor-pointer disabled:opacity-50"
           >
             <div className="flex items-center gap-3">
               <div className="w-9 h-9 rounded-lg bg-blue-500/10 border border-blue-500/30 flex items-center justify-center">
@@ -87,7 +91,7 @@ export const WalletModal: React.FC<WalletModalProps> = ({ isOpen, onClose }) => 
                 <div className="font-semibold text-white group-hover:text-stonks-cyan transition-colors text-sm">
                   Coinbase Wallet
                 </div>
-                <div className="text-[11px] text-muted">Web3 mobile & passkey wallet</div>
+                <div className="text-[11px] text-muted">Web3 mobile & browser extension</div>
               </div>
             </div>
             <span className="text-xs text-stonks-cyan/70 group-hover:text-stonks-cyan font-medium">
@@ -95,52 +99,27 @@ export const WalletModal: React.FC<WalletModalProps> = ({ isOpen, onClose }) => 
             </span>
           </button>
 
-          {/* Browser Injected / Other */}
+          {/* Browser Wallet (Rabby / Rainbow / Injected) */}
           <button
             onClick={() => handleSelect("injected")}
             disabled={isConnecting}
-            className="w-full flex items-center justify-between p-3.5 rounded-xl bg-surface-subtle/80 hover:bg-surface-border/80 border border-surface-border hover:border-white/30 transition-all group text-left"
+            className="w-full flex items-center justify-between p-3.5 rounded-xl bg-surface-subtle/80 hover:bg-surface-border/80 border border-surface-border hover:border-white/30 transition-all group text-left cursor-pointer disabled:opacity-50"
           >
             <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-lg bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center">
-                <Zap className="w-4 h-4 text-stonks-green" />
+              <div className="w-9 h-9 rounded-lg bg-purple-500/10 border border-purple-500/30 flex items-center justify-center">
+                <Wallet className="w-4 h-4 text-purple-400" />
               </div>
               <div>
-                <div className="font-semibold text-white group-hover:text-stonks-green transition-colors text-sm">
-                  Detected EVM Wallet
+                <div className="font-semibold text-white group-hover:text-white transition-colors text-sm">
+                  Browser Wallet
                 </div>
-                <div className="text-[11px] text-muted">Brave, Rabby, OKX, Rainbow, Trust</div>
+                <div className="text-[11px] text-muted">Rabby, Rainbow, OKX, Trust Wallet</div>
               </div>
             </div>
             <span className="text-xs text-muted group-hover:text-white font-medium">
-              Auto ↗
+              Connect ↗
             </span>
           </button>
-
-          {/* Instant Demo Sandbox Wallet */}
-          <div className="pt-2">
-            <button
-              onClick={() => handleSelect("demo")}
-              disabled={isConnecting}
-              className="w-full flex items-center justify-between p-3 rounded-xl bg-stonks-green/10 hover:bg-stonks-green/20 border border-stonks-green/40 transition-all group text-left"
-            >
-              <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-lg bg-stonks-green/20 flex items-center justify-center">
-                  <Sparkles className="w-4 h-4 text-stonks-green" />
-                </div>
-                <div>
-                  <div className="font-bold text-stonks-green text-xs flex items-center gap-1.5">
-                    Instant Demo Mode
-                    <span className="px-1.5 py-0.5 text-[9px] bg-stonks-green/20 rounded font-semibold text-stonks-green uppercase">
-                      1-Click
-                    </span>
-                  </div>
-                  <div className="text-[11px] text-muted-foreground">Test quest flow without wallet extension</div>
-                </div>
-              </div>
-              <span className="text-xs text-stonks-green font-semibold">Test ⚡</span>
-            </button>
-          </div>
         </div>
 
         <div className="mt-5 pt-3 border-t border-surface-border text-center text-[11px] text-muted">
