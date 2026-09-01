@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import { AdminHeader } from "@/components/AdminHeader";
+import { adminFetch } from "@/lib/adminApi";
 import {
   FileCheck2,
   CheckCircle2,
@@ -53,7 +54,7 @@ export default function AdminSubmissionsPage() {
       url.searchParams.set("page", pageNum.toString());
       url.searchParams.set("limit", "15");
 
-      const res = await fetch(url.toString());
+      const res = await adminFetch(url.toString());
       const json = await res.json();
 
       if (json.success && json.data) {
@@ -76,9 +77,8 @@ export default function AdminSubmissionsPage() {
     if (!window.confirm(`Are you sure you want to mark this submission as ${newStatus}?`)) return;
     setActionLoading(id);
     try {
-      const res = await fetch(`/api/admin/submissions/${id}`, {
+      const res = await adminFetch(`/api/admin/submissions/${id}`, {
         method: "PUT",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           status: newStatus,
           rejectionReason: newStatus === "REJECTED" ? "Rejected by administrator review." : null,

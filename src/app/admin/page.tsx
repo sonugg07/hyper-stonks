@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { AdminHeader } from "@/components/AdminHeader";
+import { adminFetch } from "@/lib/adminApi";
 import {
   Users,
   Target,
@@ -30,7 +31,7 @@ export default function AdminOverviewPage() {
   const fetchOverview = async () => {
     setLoading(true);
     try {
-      const res = await fetch("/api/admin/overview");
+      const res = await adminFetch("/api/admin/overview");
       if (res.status === 401) {
         window.location.href = "/admin/login";
         return;
@@ -55,9 +56,8 @@ export default function AdminOverviewPage() {
     setMintToggling(true);
     const newStatus = !data.mintStatus;
     try {
-      const res = await fetch("/api/admin/mint", {
+      const res = await adminFetch("/api/admin/mint", {
         method: "PUT",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ isActive: newStatus }),
       });
       const json = await res.json();
@@ -78,9 +78,8 @@ export default function AdminOverviewPage() {
     setStakingToggling(true);
     const newStatus = !data.stakingStatus;
     try {
-      const res = await fetch("/api/admin/staking", {
+      const res = await adminFetch("/api/admin/staking", {
         method: "PUT",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ isActive: newStatus }),
       });
       const json = await res.json();

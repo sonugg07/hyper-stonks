@@ -22,12 +22,16 @@ export default function AdminLayout({
       return;
     }
 
-    // Check admin session cookie
-    const hasSessionCookie = document.cookie
-      .split("; ")
-      .some((row) => row.startsWith("stonks_admin_session="));
+    // Check admin session in cookies or localStorage
+    const hasSessionCookie =
+      typeof document !== "undefined" &&
+      document.cookie.split("; ").some((row) => row.startsWith("stonks_admin_session="));
 
-    if (!hasSessionCookie) {
+    const hasLocalStorageToken =
+      typeof window !== "undefined" &&
+      Boolean(localStorage.getItem("stonks_admin_token"));
+
+    if (!hasSessionCookie && !hasLocalStorageToken) {
       router.push("/admin/login");
     } else {
       setCheckingAuth(false);

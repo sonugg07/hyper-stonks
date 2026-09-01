@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import { AdminHeader } from "@/components/AdminHeader";
+import { adminFetch } from "@/lib/adminApi";
 import { Settings, Save, CheckCircle2, Globe, Twitter, Send, Disc, Shield, Sparkles } from "lucide-react";
 
 export default function AdminSettingsPage() {
@@ -27,7 +28,7 @@ export default function AdminSettingsPage() {
   const fetchSettings = async () => {
     setLoading(true);
     try {
-      const res = await fetch("/api/admin/settings");
+      const res = await adminFetch("/api/admin/settings");
       const json = await res.json();
       if (json.success && json.data) {
         setProjectName(json.data.projectName);
@@ -60,9 +61,8 @@ export default function AdminSettingsPage() {
     setSaveSuccess(false);
 
     try {
-      const res = await fetch("/api/admin/settings", {
+      const res = await adminFetch("/api/admin/settings", {
         method: "PUT",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           projectName,
           tagline,

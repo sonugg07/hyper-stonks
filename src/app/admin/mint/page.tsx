@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import { AdminHeader } from "@/components/AdminHeader";
+import { adminFetch } from "@/lib/adminApi";
 import { Coins, CheckCircle2, AlertCircle, Sparkles, ExternalLink, Save } from "lucide-react";
 import { formatNumber } from "@/lib/utils";
 
@@ -22,7 +23,7 @@ export default function AdminMintPage() {
   const fetchMintSettings = async () => {
     setLoading(true);
     try {
-      const res = await fetch("/api/admin/mint");
+      const res = await adminFetch("/api/admin/mint");
       const json = await res.json();
       if (json.success && json.data) {
         setIsActive(json.data.isActive);
@@ -53,9 +54,8 @@ export default function AdminMintPage() {
     const activeToSave = overrideActive !== undefined ? overrideActive : isActive;
 
     try {
-      const res = await fetch("/api/admin/mint", {
+      const res = await adminFetch("/api/admin/mint", {
         method: "PUT",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           isActive: activeToSave,
           priceEth: Number(priceEth),
@@ -113,7 +113,7 @@ export default function AdminMintPage() {
               <button
                 type="button"
                 onClick={() => handleToggle(false)}
-                className={`px-6 py-3 rounded-xl font-mono font-black text-xs uppercase tracking-wider transition-all ${
+                className={`px-6 py-3 rounded-xl font-mono font-black text-xs uppercase tracking-wider transition-all cursor-pointer ${
                   !isActive
                     ? "bg-stonks-red text-white shadow-neon-red"
                     : "text-muted hover:text-white"
@@ -124,7 +124,7 @@ export default function AdminMintPage() {
               <button
                 type="button"
                 onClick={() => handleToggle(true)}
-                className={`px-6 py-3 rounded-xl font-mono font-black text-xs uppercase tracking-wider transition-all ${
+                className={`px-6 py-3 rounded-xl font-mono font-black text-xs uppercase tracking-wider transition-all cursor-pointer ${
                   isActive
                     ? "bg-stonks-green text-black shadow-neon-green"
                     : "text-muted hover:text-white"
@@ -149,7 +149,7 @@ export default function AdminMintPage() {
               className="text-stonks-cyan hover:underline flex items-center gap-1"
             >
               <span>View Public /mint Page</span>
-              <ExternalLink className="w-3 h-3" />
+              <ExternalLink className="w-3.5 h-3.5" />
             </a>
           </div>
         </div>
@@ -232,7 +232,7 @@ export default function AdminMintPage() {
             <button
               type="submit"
               disabled={saving}
-              className="px-6 py-3 rounded-xl font-bold text-xs uppercase tracking-wider text-black bg-stonks-green hover:bg-stonks-green-dim transition-all shadow-neon-green flex items-center gap-2 disabled:opacity-50"
+              className="px-6 py-3 rounded-xl font-bold text-xs uppercase tracking-wider text-black bg-stonks-green hover:bg-stonks-green-dim transition-all shadow-neon-green flex items-center gap-2 disabled:opacity-50 cursor-pointer"
             >
               <Save className="w-4 h-4" />
               <span>{saving ? "Saving..." : "Save Configuration"}</span>

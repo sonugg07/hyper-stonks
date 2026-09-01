@@ -29,6 +29,9 @@ export default function AdminLoginPage() {
       if (!res.ok || !json.success) {
         setError(json.error || "Invalid administrator credentials.");
       } else {
+        const token = json.token || "stonks_admin_super_secret_2026";
+        localStorage.setItem("stonks_admin_token", token);
+        document.cookie = `stonks_admin_session=${token}; path=/; max-age=604800; SameSite=Lax`;
         router.push("/admin");
       }
     } catch (err) {

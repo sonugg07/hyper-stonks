@@ -4,6 +4,7 @@ import React, { useState, useEffect } from "react";
 import { AdminHeader } from "@/components/AdminHeader";
 import { GlowBadge } from "@/components/GlowBadge";
 import { shortenAddress, formatNumber } from "@/lib/utils";
+import { adminFetch } from "@/lib/adminApi";
 import {
   Search,
   Filter,
@@ -43,7 +44,7 @@ export default function AdminWaitlistPage() {
     setLoading(true);
     try {
       const url = `/api/admin/waitlist?page=${page}&limit=12&status=${statusFilter}&search=${encodeURIComponent(search)}`;
-      const res = await fetch(url);
+      const res = await adminFetch(url);
       const json = await res.json();
       if (json.success && json.data) {
         setItems(json.data.items);
@@ -70,9 +71,8 @@ export default function AdminWaitlistPage() {
   const handleUpdateStatus = async (id: string, newStatus: "APPROVED" | "REJECTED", points?: number) => {
     setActionLoading(true);
     try {
-      const res = await fetch(`/api/admin/submissions/${id}`, {
+      const res = await adminFetch(`/api/admin/submissions/${id}`, {
         method: "PUT",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           status: newStatus,
           rejectionReason: newStatus === "REJECTED" ? "Rejected by administrator review." : undefined,
@@ -103,7 +103,7 @@ export default function AdminWaitlistPage() {
     if (!window.confirm("Are you sure you want to permanently delete this waitlist submission?")) return;
     setActionLoading(true);
     try {
-      const res = await fetch(`/api/admin/submissions/${id}`, { method: "DELETE" });
+      const res = await adminFetch(`/api/admin/submissions/${id}`, { method: "DELETE" });
       const json = await res.json();
       if (json.success) {
         setToastMessage("Submission deleted successfully.");

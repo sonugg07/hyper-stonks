@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import { AdminHeader } from "@/components/AdminHeader";
+import { adminFetch } from "@/lib/adminApi";
 import { Activity, RefreshCw, Filter, Clock, Shield, Sparkles, UserPlus, CheckCircle2, XCircle, Coins, Lock, Award } from "lucide-react";
 
 export default function AdminActivityPage() {
@@ -12,7 +13,7 @@ export default function AdminActivityPage() {
   const fetchActivities = async () => {
     setLoading(true);
     try {
-      const res = await fetch(`/api/admin/activity?limit=50&action=${filter}`);
+      const res = await adminFetch(`/api/admin/activity?limit=50&action=${filter}`);
       const json = await res.json();
       if (json.success && json.data) {
         setActivities(json.data);

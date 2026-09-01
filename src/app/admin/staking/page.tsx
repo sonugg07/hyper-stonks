@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import { AdminHeader } from "@/components/AdminHeader";
+import { adminFetch } from "@/lib/adminApi";
 import { Lock, CheckCircle2, AlertCircle, Sparkles, ExternalLink, Save } from "lucide-react";
 import { formatNumber } from "@/lib/utils";
 
@@ -23,7 +24,7 @@ export default function AdminStakingPage() {
   const fetchStakingSettings = async () => {
     setLoading(true);
     try {
-      const res = await fetch("/api/admin/staking");
+      const res = await adminFetch("/api/admin/staking");
       const json = await res.json();
       if (json.success && json.data) {
         setIsActive(json.data.isActive);
@@ -55,9 +56,8 @@ export default function AdminStakingPage() {
     const activeToSave = overrideActive !== undefined ? overrideActive : isActive;
 
     try {
-      const res = await fetch("/api/admin/staking", {
+      const res = await adminFetch("/api/admin/staking", {
         method: "PUT",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           isActive: activeToSave,
           apyPercent: Number(apyPercent),
@@ -90,8 +90,8 @@ export default function AdminStakingPage() {
   return (
     <div className="flex-1 flex flex-col">
       <AdminHeader
-        title="Staking Vault Control"
-        subtitle="Manage token staking status, APY emission rates, lock duration, and contracts."
+        title="Yield Vault & Staking Control"
+        subtitle="Manage staking module status, APY percentage yields, and reward pool parameters."
         onRefresh={fetchStakingSettings}
         isLoading={loading}
       />
@@ -107,7 +107,7 @@ export default function AdminStakingPage() {
               </div>
               <h2 className="text-2xl font-black text-white">Staking Vault Status</h2>
               <p className="text-xs text-muted max-w-md">
-                When turned OFF, the public /staking page immediately displays the disabled state and blocks any stake/claim action.
+                When turned OFF, the public /staking page immediately renders the closed state and disables new deposits.
               </p>
             </div>
 
@@ -116,7 +116,7 @@ export default function AdminStakingPage() {
               <button
                 type="button"
                 onClick={() => handleToggle(false)}
-                className={`px-6 py-3 rounded-xl font-mono font-black text-xs uppercase tracking-wider transition-all ${
+                className={`px-6 py-3 rounded-xl font-mono font-black text-xs uppercase tracking-wider transition-all cursor-pointer ${
                   !isActive
                     ? "bg-stonks-red text-white shadow-neon-red"
                     : "text-muted hover:text-white"
@@ -127,7 +127,7 @@ export default function AdminStakingPage() {
               <button
                 type="button"
                 onClick={() => handleToggle(true)}
-                className={`px-6 py-3 rounded-xl font-mono font-black text-xs uppercase tracking-wider transition-all ${
+                className={`px-6 py-3 rounded-xl font-mono font-black text-xs uppercase tracking-wider transition-all cursor-pointer ${
                   isActive
                     ? "bg-stonks-cyan text-black shadow-neon-cyan"
                     : "text-muted hover:text-white"
@@ -152,7 +152,7 @@ export default function AdminStakingPage() {
               className="text-stonks-cyan hover:underline flex items-center gap-1"
             >
               <span>View Public /staking Page</span>
-              <ExternalLink className="w-3 h-3" />
+              <ExternalLink className="w-3.5 h-3.5" />
             </a>
           </div>
         </div>
@@ -160,9 +160,9 @@ export default function AdminStakingPage() {
         {/* SETTINGS FORM */}
         <form onSubmit={handleSave} className="p-8 rounded-3xl bg-[#0B130E] border border-surface-border space-y-6">
           <div className="flex items-center justify-between pb-4 border-b border-surface-border">
-            <h3 className="text-lg font-bold text-white">Staking Parameters & Yield Configuration</h3>
+            <h3 className="text-lg font-bold text-white">Staking Parameters & Yield Settings</h3>
             {saveSuccess && (
-              <span className="text-xs text-stonks-green font-mono font-bold flex items-center gap-1">
+              <span className="text-xs text-stonks-cyan font-mono font-bold flex items-center gap-1">
                 <CheckCircle2 className="w-4 h-4" />
                 Settings Saved & Synced!
               </span>
@@ -171,7 +171,7 @@ export default function AdminStakingPage() {
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 text-xs font-mono">
             <div className="space-y-1.5">
-              <label className="text-muted font-bold uppercase">Staking APY (%)</label>
+              <label className="text-muted font-bold uppercase">Estimated APY (%)</label>
               <input
                 type="number"
                 step="0.1"
@@ -189,12 +189,12 @@ export default function AdminStakingPage() {
                 required
                 value={rewardTokenSymbol}
                 onChange={(e) => setRewardTokenSymbol(e.target.value)}
-                className="w-full bg-[#070D0A] border border-surface-border focus:border-stonks-cyan rounded-xl px-4 py-3 text-white font-bold text-stonks-green outline-none"
+                className="w-full bg-[#070D0A] border border-surface-border focus:border-stonks-cyan rounded-xl px-4 py-3 text-white outline-none"
               />
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-muted font-bold uppercase">Minimum Stake (ETH)</label>
+              <label className="text-muted font-bold uppercase">Min Stake Limit</label>
               <input
                 type="number"
                 step="0.01"
@@ -206,10 +206,10 @@ export default function AdminStakingPage() {
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-muted font-bold uppercase">Maximum Stake (ETH)</label>
+              <label className="text-muted font-bold uppercase">Max Stake Limit</label>
               <input
                 type="number"
-                step="1"
+                step="0.1"
                 required
                 value={maxStake}
                 onChange={(e) => setMaxStake(Number(e.target.value))}
@@ -218,7 +218,7 @@ export default function AdminStakingPage() {
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-muted font-bold uppercase">Lock Period (Days)</label>
+              <label className="text-muted font-bold uppercase">Lock Duration (Days)</label>
               <input
                 type="number"
                 required
@@ -243,7 +243,7 @@ export default function AdminStakingPage() {
             </div>
 
             <div className="sm:col-span-2 space-y-1.5">
-              <label className="text-muted font-bold uppercase">Staking Contract Address</label>
+              <label className="text-muted font-bold uppercase">Smart Contract Address</label>
               <input
                 type="text"
                 required
@@ -259,7 +259,7 @@ export default function AdminStakingPage() {
             <button
               type="submit"
               disabled={saving}
-              className="px-6 py-3 rounded-xl font-bold text-xs uppercase tracking-wider text-black bg-stonks-cyan hover:bg-cyan-400 transition-all shadow-neon-cyan flex items-center gap-2 disabled:opacity-50"
+              className="px-6 py-3 rounded-xl font-bold text-xs uppercase tracking-wider text-black bg-stonks-cyan hover:bg-stonks-cyan/90 transition-all shadow-neon-cyan flex items-center gap-2 disabled:opacity-50 cursor-pointer"
             >
               <Save className="w-4 h-4" />
               <span>{saving ? "Saving..." : "Save Configuration"}</span>

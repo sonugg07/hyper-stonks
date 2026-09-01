@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import { AdminHeader } from "@/components/AdminHeader";
+import { adminFetch, getAdminHeaders } from "@/lib/adminApi";
 import {
   CheckSquare,
   Plus,
@@ -52,7 +53,7 @@ export default function AdminTasksPage() {
   const fetchTasks = async () => {
     setLoading(true);
     try {
-      const res = await fetch("/api/quests?all=true");
+      const res = await adminFetch("/api/quests?all=true");
       const json = await res.json();
       if (json.success && json.data) {
         setTasks(json.data);
@@ -101,18 +102,17 @@ export default function AdminTasksPage() {
     try {
       if (editingTask) {
         // Update existing task
-        const res = await fetch(`/api/admin/quests/${editingTask.id}`, {
+        const res = await adminFetch(`/api/admin/quests/${editingTask.id}`, {
           method: "PUT",
-          headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             title,
             description,
             taskType,
             url,
-            points,
+            points: Number(points),
             verificationType,
             isActive,
-            orderIndex,
+            orderIndex: Number(orderIndex),
           }),
         });
         const json = await res.json();
@@ -121,18 +121,17 @@ export default function AdminTasksPage() {
         }
       } else {
         // Create new task
-        const res = await fetch("/api/quests", {
+        const res = await adminFetch("/api/quests", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             title,
             description,
             taskType,
             url,
-            points,
+            points: Number(points),
             verificationType,
             isActive,
-            orderIndex,
+            orderIndex: Number(orderIndex),
           }),
         });
         const json = await res.json();
@@ -142,7 +141,7 @@ export default function AdminTasksPage() {
       }
 
       setIsModalOpen(false);
-      fetchTasks();
+      await fetchTasks();
       setTimeout(() => setToastMessage(null), 3000);
     } catch (err) {
       console.error("Save task error:", err);
@@ -154,7 +153,7 @@ export default function AdminTasksPage() {
   const handleDelete = async (id: string) => {
     if (!window.confirm("Are you sure you want to delete this waitlist task?")) return;
     try {
-      const res = await fetch(`/api/admin/quests/${id}`, { method: "DELETE" });
+      const res = await adminFetch(`/api/admin/quests/${id}`, { method: "DELETE" });
       const json = await res.json();
       if (json.success) {
         setToastMessage("Task deleted successfully.");
@@ -168,9 +167,8 @@ export default function AdminTasksPage() {
 
   const handleToggleActive = async (task: Task) => {
     try {
-      await fetch(`/api/admin/quests/${task.id}`, {
+      await adminFetch(`/api/admin/quests/${task.id}`, {
         method: "PUT",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ isActive: !task.isActive }),
       });
       fetchTasks();
@@ -210,7 +208,7 @@ export default function AdminTasksPage() {
 
           <button
             onClick={openAddModal}
-            className="px-5 py-2.5 rounded-xl font-bold text-xs uppercase tracking-wider text-black bg-stonks-green hover:bg-stonks-green-dim transition-all shadow-neon-green flex items-center gap-2"
+            className="px-5 py-2.5 rounded-xl font-bold text-xs uppercase tracking-wider text-black bg-stonks-green hover:bg-stonks-green-dim transition-all shadow-neon-green flex items-center gap-2 cursor-pointer"
           >
             <Plus className="w-4 h-4" />
             <span>Add New Waitlist Task</span>
@@ -266,7 +264,7 @@ export default function AdminTasksPage() {
                       <td className="py-3.5 px-4">
                         <button
                           onClick={() => handleToggleActive(task)}
-                          className={`px-2.5 py-1 rounded-full text-[10px] font-bold transition-all ${
+                          className={`px-2.5 py-1 rounded-full text-[10px] font-bold transition-all cursor-pointer ${
                             task.isActive
                               ? "bg-stonks-green/15 text-stonks-green border border-stonks-green/30"
                               : "bg-surface-subtle text-muted border border-surface-border"

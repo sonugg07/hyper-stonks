@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import { AdminHeader } from "@/components/AdminHeader";
+import { adminFetch } from "@/lib/adminApi";
 import {
   Users,
   Search,
@@ -54,7 +55,7 @@ export default function AdminUsersPage() {
       url.searchParams.set("page", pageNum.toString());
       url.searchParams.set("limit", "12");
 
-      const res = await fetch(url.toString());
+      const res = await adminFetch(url.toString());
       const json = await res.json();
 
       if (json.success && json.data) {
@@ -91,9 +92,8 @@ export default function AdminUsersPage() {
     setIsSaving(true);
 
     try {
-      const res = await fetch(`/api/admin/users/${selectedUser.id}`, {
+      const res = await adminFetch(`/api/admin/users/${selectedUser.id}`, {
         method: "PUT",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           totalPoints: Number(editPoints),
           pointsAdjustmentReason: pointsReason,
@@ -116,9 +116,8 @@ export default function AdminUsersPage() {
     if (!confirm(`Are you sure you want to ${action} ${user.xHandle || user.walletAddress}?`)) return;
 
     try {
-      const res = await fetch(`/api/admin/users/${user.id}`, {
+      const res = await adminFetch(`/api/admin/users/${user.id}`, {
         method: "PUT",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ isBanned: !user.isBanned }),
       });
 
