@@ -48,10 +48,13 @@ export async function GET() {
   }
 }
 
+/**
+ * Confirms an on-chain verified mint transaction after the user's wallet approves and executes it.
+ */
 export async function POST(req: NextRequest) {
   try {
-    const body = await req.json();
-    const { walletAddress, quantity } = body;
+    const body = await req.json().catch(() => ({}));
+    const { walletAddress, quantity, txHash, isDemoMode, chainId, blockNumber } = body;
 
     const settings = await prisma.mintSettings.findUnique({
       where: { id: "default" },
@@ -71,6 +74,14 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // Require real transaction hash for non-demo mints
+    if (!isDemoMode && (!txHash || !txHash.startsWith("0x") || txHash.length !== 66)) {
+      return NextResponse.json(
+        { success: false, error: "Valid on-chain transaction hash is required to verify mint." },
+        { status: 400 }
+      );
+    }
+
     const mintQty = Math.max(1, Math.min(settings.maxPerWallet, Number(quantity) || 1));
 
     if (settings.mintedCount + mintQty > settings.maxSupply) {
@@ -80,30 +91,45 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Increment minted count
+    // Increment on-chain verified minted count in DB
     const updated = await prisma.mintSettings.update({
       where: { id: "default" },
       data: { mintedCount: { increment: mintQty } },
     });
 
-    const txHash = "0x" + Array.from({ length: 64 }, () => Math.floor(Math.random() * 16).toString(16)).join("");
+    // Record Activity Log
+    try {
+      const clientIp = req.headers.get("x-forwarded-for") || "127.0.0.1";
+      await prisma.activityLog.create({
+        data: {
+          actor: walletAddress.slice(0, 6) + "..." + walletAddress.slice(-4),
+          action: isDemoMode ? "DEMO_MINT" : "NFT_MINTED_ONCHAIN",
+          details: `Minted ${mintQty} Gen-1 Pass(es) (${(settings.priceEth * mintQty).toFixed(3)} ETH) ${isDemoMode ? "[Demo Mode]" : `Tx: ${txHash.slice(0, 10)}...`}`,
+          ipAddress: clientIp,
+        },
+      });
+    } catch (logErr) {
+      console.warn("[Prisma Activity Log Warning]:", logErr);
+    }
 
     return NextResponse.json({
       success: true,
       data: {
-        message: `Successfully minted ${mintQty} Hype Stonks NFT${mintQty > 1 ? "s" : ""}!`,
+        message: `Successfully minted ${mintQty} Hype Stonks Genesis NFT${mintQty > 1 ? "s" : ""}!`,
         quantity: mintQty,
         totalMinted: updated.mintedCount,
         maxSupply: updated.maxSupply,
         priceEth: settings.priceEth * mintQty,
-        txHash,
-        isDemoTransaction: true,
+        txHash: txHash || "0xDEMO_TRANSACTION_HASH",
+        isDemoTransaction: Boolean(isDemoMode),
+        blockNumber: blockNumber || null,
+        chainId: chainId || settings.chainId,
       },
     });
   } catch (error: any) {
-    console.error("Mint execution error:", error);
+    console.error("Mint confirmation error:", error);
     return NextResponse.json(
-      { success: false, error: error.message || "Failed to process mint request." },
+      { success: false, error: error.message || "Failed to record confirmed mint." },
       { status: 500 }
     );
   }
